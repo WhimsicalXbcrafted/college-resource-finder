@@ -5,7 +5,7 @@ import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { UserCircle } from "lucide-react"
 
-export default function Header() {
+const Header = () => {
   const [isLoggedIn, setIsLoggedIn] = useState(false)
   const [showDropdown, setShowDropdown] = useState(false)
   const [email, setEmail] = useState("")
@@ -22,29 +22,32 @@ export default function Header() {
   }
 
   return (
-    <header className="bg-purple-700 text-white p-4 shadow-lg">
-      <div className="container mx-auto flex justify-between items-center">
-        <Link href="/" className="text-2xl font-bold">
-          UW Resources
+    <header className="bg-card border-b border-border glassmorphism">
+      <div className="container mx-auto px-4 py-4 flex justify-between items-center">
+        <Link href="/" className="text-2xl font-bold text-primary">
+          Husky Resources
         </Link>
         <div className="relative">
           {isLoggedIn ? (
             <div>
               <button
                 onClick={() => setShowDropdown(!showDropdown)}
-                className="flex items-center space-x-2 bg-purple-600 hover:bg-purple-500 px-4 py-2 rounded-full transition duration-300"
+                className="flex items-center space-x-2 bg-muted text-foreground px-4 py-2 rounded-md transition duration-300 hover:bg-accent hover:text-accent-foreground"
               >
-                <UserCircle className="h-6 w-6" />
+                <UserCircle className="h-5 w-5" />
                 <span>{email}</span>
               </button>
               {showDropdown && (
-                <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-10">
-                  <Link href="/settings" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
+                <div className="absolute right-0 mt-2 w-48 bg-card rounded-md shadow-lg py-1 z-10 glassmorphism">
+                  <Link
+                    href="/settings"
+                    className="block px-4 py-2 text-sm text-foreground hover:bg-accent hover:text-accent-foreground"
+                  >
                     Settings
                   </Link>
                   <button
                     onClick={handleLogout}
-                    className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                    className="block w-full text-left px-4 py-2 text-sm text-foreground hover:bg-accent hover:text-accent-foreground"
                   >
                     Logout
                   </button>
@@ -55,13 +58,13 @@ export default function Header() {
             <div className="space-x-4">
               <button
                 onClick={handleLogin}
-                className="bg-white text-purple-700 px-4 py-2 rounded-full hover:bg-purple-100 transition duration-300"
+                className="bg-primary text-primary-foreground px-4 py-2 rounded-md hover:bg-primary/90 transition duration-300"
               >
                 Login
               </button>
               <Link
                 href="/signup"
-                className="bg-purple-600 text-white px-4 py-2 rounded-full hover:bg-purple-500 transition duration-300"
+                className="bg-secondary text-secondary-foreground px-4 py-2 rounded-md hover:bg-secondary/80 transition duration-300"
               >
                 Sign Up
               </Link>
@@ -72,4 +75,6 @@ export default function Header() {
     </header>
   )
 }
+
+export default Header
 

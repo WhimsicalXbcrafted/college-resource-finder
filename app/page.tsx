@@ -1,28 +1,23 @@
-"use client"
-
-import { useState, useEffect } from "react"
+import dynamic from "next/dynamic"
 import Header from "./components/Header"
-import ResourceFeed from "./components/ResourceFeed"
-import SearchBar from "./components/SearchBar"
 import Banner from "./components/Banner"
+import SearchBar from "./components/SearchBar"
+import ResourceFeedWrapper from "./components/ResourceFeedWrapper"
 
 export default function Home() {
-  const [showBanner, setShowBanner] = useState(false)
-
-  useEffect(() => {
-    setShowBanner(true)
-  }, [])
-
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-100 to-indigo-200">
+    <div className="min-h-screen bg-gradient-radial from-background to-card">
       <Header />
-      <Banner show={showBanner} />
+      <Banner show={true} />
       <main className="container mx-auto px-4 py-8">
-        <h1 className="text-4xl font-bold text-center mb-8 text-purple-800">UW College Resource Finder</h1>
+        <h1 className="text-4xl font-bold text-center mb-8 text-primary">Husky Resource Finder</h1>
+        <p className="text-center mb-8 text-muted-foreground">
+          A student-driven initiative to help you discover campus resources. Not affiliated with the University of
+          Washington.
+        </p>
         <SearchBar />
-        <ResourceFeed />
+        <ResourceFeedWrapper />
       </main>
     </div>
   )
 }
-

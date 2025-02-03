@@ -41,7 +41,6 @@ const ResourceFeed = () => {
   const [filters, setFilters] = useState<string[]>([])
   const [favorites, setFavorites] = useState<number[]>([])
   const feedRef = useRef<HTMLDivElement>(null)
-  const [scrollPosition, setScrollPosition] = useState(0)
 
   useEffect(() => {
     // Simulating API call to fetch resources
@@ -155,17 +154,6 @@ const ResourceFeed = () => {
     }, 5000)
   }, [])
 
-  const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
-    if (feedRef.current) {
-      const scrollTop = feedRef.current.scrollTop
-      const scrollHeight = feedRef.current.scrollHeight
-      const clientHeight = feedRef.current.clientHeight
-      const maxScroll = scrollHeight - clientHeight
-      const normalizedScroll = scrollTop / maxScroll
-      setScrollPosition(normalizedScroll)
-    }
-  }
-
   const filteredResources = resources.filter((resource) => filters.length === 0 || filters.includes(resource.category))
 
   const toggleFavorite = (resourceId: number) => {
@@ -219,55 +207,44 @@ const ResourceFeed = () => {
       <div className="relative">
         <div
           ref={feedRef}
-          onScroll={handleScroll}
           className="bg-card rounded-lg shadow-md p-4 max-h-[calc(100vh-300px)] overflow-y-auto glassmorphism"
         >
-          {filteredResources.map((resource, index) => {
-            const itemPosition = index / (filteredResources.length - 1)
-            const distanceFromCenter = Math.abs(itemPosition - scrollPosition)
-            const scale = 1 - distanceFromCenter * 0.3 // Adjust the 0.3 value to control the grow/shrink effect
-
-            return (
-              <motion.div
-                key={resource.id}
-                className={`mb-4 p-4 border border-border rounded-lg cursor-pointer transition-all duration-300 ease-in-out ${
-                  resource.isNew ? "border-secondary" : ""
-                } ${selectedResource?.id === resource.id ? "bg-primary/20" : "hover:bg-accent hover:text-accent-foreground"}`}
-                onClick={() => setSelectedResource(resource)}
-                style={{
-                  scale,
-                  opacity: 0.5 + (1 - distanceFromCenter) * 0.5, // Adjust opacity based on distance from center
-                }}
-              >
-                <div className="flex justify-between items-start">
-                  <h3 className="text-xl font-semibold text-primary">{resource.name}</h3>
-                  <div className="flex items-center">
-                    <span className="text-secondary mr-2">{resource.averageRating.toFixed(1)}</span>
-                    <motion.button
-                      whileTap={{ scale: 0.9 }}
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        toggleFavorite(resource.id)
-                      }}
-                    >
-                      <Star
-                        className={`h-5 w-5 ${
-                          favorites.includes(resource.id) ? "text-secondary fill-current" : "text-muted-foreground"
-                        }`}
-                      />
-                    </motion.button>
-                  </div>
+          {filteredResources.map((resource) => (
+            <motion.div
+              key={resource.id}
+              className={`mb-4 p-4 border border-border rounded-lg cursor-pointer transition-all duration-300 ease-in-out ${
+                resource.isNew ? "border-secondary" : ""
+              } hover:scale-[1.02]`}
+              onClick={() => setSelectedResource(resource)}
+            >
+              <div className="flex justify-between items-start">
+                <h3 className="text-xl font-semibold text-primary">{resource.name}</h3>
+                <div className="flex items-center">
+                  <span className="text-secondary mr-2">{resource.averageRating.toFixed(1)}</span>
+                  <motion.button
+                    whileTap={{ scale: 0.9 }}
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      toggleFavorite(resource.id)
+                    }}
+                  >
+                    <Star
+                      className={`h-5 w-5 ${
+                        favorites.includes(resource.id) ? "text-secondary fill-current" : "text-muted-foreground"
+                      }`}
+                    />
+                  </motion.button>
                 </div>
-                <p className="text-muted-foreground">{resource.description}</p>
-                <p className="text-sm text-primary mt-2">{resource.category}</p>
-                {resource.isNew && (
-                  <span className="bg-secondary text-secondary-foreground text-xs font-bold px-2 py-1 rounded-full animate-pulse">
-                    NEW
-                  </span>
-                )}
-              </motion.div>
-            )
-          })}
+              </div>
+              <p className="text-muted-foreground">{resource.description}</p>
+              <p className="text-sm text-primary mt-2">{resource.category}</p>
+              {resource.isNew && (
+                <span className="bg-secondary text-secondary-foreground text-xs font-bold px-2 py-1 rounded-full animate-pulse">
+                  NEW
+                </span>
+              )}
+            </motion.div>
+          ))}
         </div>
       </div>
       {selectedResource && (
@@ -308,4 +285,3 @@ const ResourceFeed = () => {
 }
 
 export default ResourceFeed
-

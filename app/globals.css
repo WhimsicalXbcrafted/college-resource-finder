@@ -92,3 +92,7 @@
   scroll-behavior: smooth;
 }
 
+/* Smooth transitions for resource items */
+.resource-item {
+  transition: all 0.3s ease-in-out;
+}

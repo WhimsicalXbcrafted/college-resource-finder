@@ -3,16 +3,41 @@
 import { useState } from "react"
 import Link from "next/link"
 import { motion } from "framer-motion"
+import { useRouter } from "next/navigation"
+import { isUWEmail } from "../utils/emailValidator"
 
 export default function SignUp() {
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
+  const [error, setError] = useState("")
+  const router = useRouter()
 
-  const handleSignUp = (e: React.FormEvent) => {
+  const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault()
-    // Implement sign up logic here
-    console.log("Signing up with:", email, password)
-  }
+
+    if (!isUWEmail(email)) {
+      setError("Please use your UW email address (@uw.edu).")
+      return
+    }
+
+    try {
+      const response = await fetch('/api/signup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
+      })
+
+      const data = await response.json()
+
+      if (response.ok) {
+        router.push('/login')
+      } else {
+        setError(data.message || "An error occurred. Please try again.")
+      }
+    } catch (error) {
+      setError("An error occured. Please try again.")
+    }
+  };
 
   return (
     <div className="min-h-screen bg-background flex flex-col justify-center py-12 sm:px-6 lg:px-8">
@@ -32,6 +57,11 @@ export default function SignUp() {
         className="mt-8 sm:mx-auto sm:w-full sm:max-w-md"
       >
         <div className="bg-card py-8 px-4 shadow sm:rounded-lg sm:px-10">
+          {error && ( 
+            <div className="mb-4 p-2 bg-red-100 text-red-700 text-sm rounded-md">
+              {error}
+            </div>
+          )}
           <form className="space-y-6" onSubmit={handleSignUp}>
             <div>
               <label htmlFor="email" className="block text-sm font-medium text-card-foreground">
@@ -46,7 +76,7 @@ export default function SignUp() {
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="appearance-none block w-full px-3 py-2 border border-input rounded-md shadow-sm placeholder-muted-foreground focus:outline-none focus:ring-primary focus:border-primary sm:text-sm"
+                  className="appearance-none block w-full px-3 py-2 border border-input rounded-md shadow-sm text-black placeholder-muted-foreground focus:outline-none focus:ring-primary focus:border-primary sm:text-sm"
                 />
               </div>
             </div>
@@ -64,7 +94,7 @@ export default function SignUp() {
                   required
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="appearance-none block w-full px-3 py-2 border border-input rounded-md shadow-sm placeholder-muted-foreground focus:outline-none focus:ring-primary focus:border-primary sm:text-sm"
+                  className="appearance-none block w-full px-3 py-2 border border-input rounded-md shadow-sm text-black placeholder-muted-foreground focus:outline-none focus:ring-primary focus:border-primary sm:text-sm"
                 />
               </div>
             </div>
@@ -103,4 +133,3 @@ export default function SignUp() {
     </div>
   )
 }
-

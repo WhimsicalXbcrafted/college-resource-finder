@@ -3,17 +3,29 @@
 import { useState } from "react"
 import Link from "next/link"
 import { motion } from "framer-motion"
+import { useRouter } from "next/navigation"
+import { signIn } from "next-auth/react"
 
 export default function Login() {
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
+  const router = useRouter()
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
-    // Implement login logic here
-    console.log("Logging in with:", email, password)
-  }
 
+    const result = await signIn("credentials", {
+      redirect: false,
+      email,
+      password,
+    })
+
+    if (result?.error) {
+      alert(result.error)
+    } else {
+      router.push('/')
+    }
+  }
   return (
     <div className="min-h-screen bg-background flex flex-col justify-center py-12 sm:px-6 lg:px-8">
       <motion.div
@@ -46,7 +58,7 @@ export default function Login() {
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="appearance-none block w-full px-3 py-2 border border-input rounded-md shadow-sm placeholder-muted-foreground focus:outline-none focus:ring-primary focus:border-primary sm:text-sm"
+                  className="appearance-none block w-full px-3 py-2 border border-input rounded-md shadow-sm text-black placeholder-muted-foreground focus:outline-none focus:ring-primary focus:border-primary sm:text-sm"
                 />
               </div>
             </div>
@@ -64,7 +76,7 @@ export default function Login() {
                   required
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="appearance-none block w-full px-3 py-2 border border-input rounded-md shadow-sm placeholder-muted-foreground focus:outline-none focus:ring-primary focus:border-primary sm:text-sm"
+                  className="appearance-none block w-full px-3 py-2 border border-input rounded-md shadow-sm text-black placeholder-muted-foreground focus:outline-none focus:ring-primary focus:border-primary sm:text-sm"
                 />
               </div>
             </div>

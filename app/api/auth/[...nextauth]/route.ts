@@ -11,6 +11,7 @@ interface DatabaseUser {
 }
 
 export const authOptions: NextAuthOptions = {
+  secret: 'qO4Ak8uUQaiPvF7EO9xAK7AKg3g5Zgjl0Vf40dr2mnE=',
   providers: [
     CredentialsProvider({
       name: 'Credentials',
@@ -18,7 +19,13 @@ export const authOptions: NextAuthOptions = {
         email: { label: 'Email', type: 'text' },
         password: { label: 'Password', type: 'password' },
       },
+
       async authorize(credentials) {
+        if (!db) {
+          console.error('Database connection failed');
+          return null;
+        }
+
         if (!credentials?.email || !credentials?.password) {
           return null;
         }

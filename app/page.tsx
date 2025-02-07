@@ -3,14 +3,13 @@ import { redirect } from 'next/navigation';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import Header from './components/Header';
 import Banner from './components/Banner';
-import SearchBar from './components/SearchBar';
-import ResourceFeedWrapper from './components/ResourceFeedWrapper';
+import HomeClient from './components/HomeClient';
 
 export default async function Home() { 
-    const session = await getServerSession(authOptions);
-    if (!session) {
-        redirect('/home');
-    }
+  const session = await getServerSession(authOptions);
+  if (!session) {
+      redirect('/home');
+  }
 
   return (
     <div className="min-h-screen bg-gradient-radial from-background to-card">
@@ -22,8 +21,7 @@ export default async function Home() {
           A student-driven initiative to help you discover campus resources. Not affiliated with the University of
           Washington.
         </p>
-        <SearchBar />
-        <ResourceFeedWrapper />
+        <HomeClient />
       </main>
     </div>
   );

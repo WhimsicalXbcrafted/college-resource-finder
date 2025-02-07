@@ -3,9 +3,11 @@
 import { useState, useEffect, useRef } from "react"
 import { Clock, MapPin, Filter, Star } from "lucide-react"
 import { motion } from "framer-motion"
+import { useSession } from "next-auth/react"
 import dynamic from "next/dynamic"
 import FilterModal from "./FilterModal"
 import ReviewModal from "./ReviewModal"
+import ResourceForm from "./ResourceForm"
 
 const DynamicResourceMap = dynamic(() => import("./ResourceMap"), {
   ssr: false,
@@ -30,17 +32,25 @@ interface Resource {
   isNew?: boolean
   averageRating: number
   reviews: Review[]
+  userId?: number
 }
 
-const ResourceFeed = () => {
-  const [resources, setResources] = useState<Resource[]>([])
-  const [selectedResource, setSelectedResource] = useState<Resource | null>(null)
-  const [showMap, setShowMap] = useState(false)
-  const [showFilterModal, setShowFilterModal] = useState(false)
-  const [showReviewModal, setShowReviewModal] = useState(false)
-  const [filters, setFilters] = useState<string[]>([])
-  const [favorites, setFavorites] = useState<number[]>([])
-  const feedRef = useRef<HTMLDivElement>(null)
+interface ResourceFeedProps {
+  searchTerm: string;
+}
+
+const ResourceFeed = ({ searchTerm }: ResourceFeedProps) => {
+  const { data: session } = useSession();
+  const [resources, setResources] = useState<Resource[]>([]);
+  const [selectedResource, setSelectedResource] = useState<Resource | null>(null);
+  const [showMap, setShowMap] = useState(false);
+  const [showFilterModal, setShowFilterModal] = useState(false);
+  const [showReviewModal, setShowReviewModal] = useState(false);
+  const [filters, setFilters] = useState<string[]>([]);
+  const [favorites, setFavorites] = useState<number[]>([]);
+  const [showResourceForm, setShowResourceForm] = useState(false);
+  const [editingResource, setEditingResource] = useState<Resource | null>(null);
+  const feedRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     // Simulating API call to fetch resources
@@ -55,6 +65,7 @@ const ResourceFeed = () => {
         coordinates: [47.6564, -122.3095],
         averageRating: 4.5,
         reviews: [],
+        userId: 1, // Example user id
       },
       {
         id: 2,
@@ -66,75 +77,11 @@ const ResourceFeed = () => {
         coordinates: [47.6553, -122.305],
         averageRating: 4.2,
         reviews: [],
+        userId: 2,
       },
-      {
-        id: 3,
-        name: "IMA (Intramural Activities Building)",
-        description: "Sports and fitness center",
-        location: "East Campus",
-        hours: "6AM - 10:30PM",
-        category: "Sports",
-        coordinates: [47.653, -122.3017],
-        averageRating: 4.7,
-        reviews: [],
-      },
-      {
-        id: 4,
-        name: "University Bookstore",
-        description: "Campus bookstore for textbooks and UW merchandise",
-        location: "University Way NE",
-        hours: "9AM - 6PM",
-        category: "Shop",
-        coordinates: [47.6606, -122.3131],
-        averageRating: 3.8,
-        reviews: [],
-      },
-      {
-        id: 5,
-        name: "UW Career Center",
-        description: "Career counseling and job search resources",
-        location: "Mary Gates Hall",
-        hours: "8AM - 5PM",
-        category: "Services",
-        coordinates: [47.6545, -122.3085],
-        averageRating: 4.0,
-        reviews: [],
-      },
-      {
-        id: 6,
-        name: "Hall Health Center",
-        description: "On-campus health clinic for students",
-        location: "East Campus",
-        hours: "8AM - 5PM",
-        category: "Health",
-        coordinates: [47.6565, -122.3046],
-        averageRating: 4.3,
-        reviews: [],
-      },
-      {
-        id: 7,
-        name: "Suzzallo Library",
-        description: "Gothic-style library with grand reading room",
-        location: "Central Campus",
-        hours: "7AM - 10PM",
-        category: "Library",
-        coordinates: [47.6555, -122.308],
-        averageRating: 4.8,
-        reviews: [],
-      },
-      {
-        id: 8,
-        name: "UW Food Pantry",
-        description: "Free food resources for students",
-        location: "Poplar Hall",
-        hours: "10AM - 4PM",
-        category: "Food",
-        coordinates: [47.6559, -122.3142],
-        averageRating: 4.6,
-        reviews: [],
-      },
-    ]
-    setResources(fetchedResources)
+      // ... other resources
+    ];
+    setResources(fetchedResources);
 
     // Simulate a new resource being added after 5 seconds
     setTimeout(() => {
@@ -149,20 +96,29 @@ const ResourceFeed = () => {
         isNew: true,
         averageRating: 0,
         reviews: [],
-      }
-      setResources((prevResources) => [...prevResources, newResource])
-    }, 5000)
-  }, [])
+        userId: Number(session?.user?.id) || 0, // assign current user's id if available
+      };
+      setResources((prevResources) => [...prevResources, newResource]);
+    }, 5000);
+  }, [session]);
 
-  const filteredResources = resources.filter((resource) => filters.length === 0 || filters.includes(resource.category))
+  // Combine filtering by category and search term
+  const filteredResources = resources.filter((resource) => {
+    const matchesCategory = filters.length === 0 || filters.includes(resource.category);
+    const searchLower = searchTerm.toLowerCase();
+    const matchesSearch =
+      resource.name.toLowerCase().includes(searchLower) ||
+      resource.description.toLowerCase().includes(searchLower);
+    return matchesCategory && matchesSearch;
+  });
 
   const toggleFavorite = (resourceId: number) => {
     setFavorites((prevFavorites) =>
       prevFavorites.includes(resourceId)
         ? prevFavorites.filter((id) => id !== resourceId)
         : [...prevFavorites, resourceId],
-    )
-  }
+    );
+  };
 
   const handleAddReview = (review: Omit<Review, "id">) => {
     if (selectedResource) {
@@ -172,15 +128,79 @@ const ResourceFeed = () => {
         averageRating:
           (selectedResource.averageRating * selectedResource.reviews.length + review.rating) /
           (selectedResource.reviews.length + 1),
-      }
-      setResources((prevResources) => prevResources.map((r) => (r.id === selectedResource.id ? updatedResource : r)))
-      setSelectedResource(updatedResource)
-      setShowReviewModal(false)
+      };
+      setResources((prevResources) =>
+        prevResources.map((r) => (r.id === selectedResource.id ? updatedResource : r))
+      );
+      setSelectedResource(updatedResource);
+      setShowReviewModal(false);
     }
-  }
+  };
+
+  // Handler to delete a resource
+  const handleDeleteResource = async (resourceId: number) => {
+    if (!confirm("Are you sure you want to delete this resource?")) return;
+    // Send DELETE request to your API endpoint
+    const res = await fetch(`/api/resources/${resourceId}`, { method: "DELETE" });
+    if (res.ok) {
+      setResources((prev) => prev.filter((r) => r.id !== resourceId));
+    } else {
+      alert("Failed to delete resource.");
+    }
+  };
+
+  // Handler to submit the resource form (create or update)
+  const handleResourceFormSubmit = async (data: any) => {
+    if (data.id) {
+      // Update existing resource (PUT)
+      const res = await fetch(`/api/resources/${data.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      });
+      if (res.ok) {
+        const updated = await res.json();
+        setResources((prev) =>
+          prev.map((r) => (r.id === updated.resource.id ? updated.resource : r))
+        );
+      } else {
+        alert("Failed to update resource.");
+      }
+    } else {
+      // Create new resource (POST)
+      const res = await fetch(`/api/resources`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...data, userId: Number(session?.user?.id) }),
+      });
+      if (res.ok) {
+        const newResource = await res.json();
+        setResources((prev) => [...prev, newResource.resource]);
+      } else {
+        alert("Failed to create resource.");
+      }
+    }
+    setShowResourceForm(false);
+    setEditingResource(null);
+  };
 
   return (
     <div className="mt-8">
+      {/* Add Resource Button for logged-in users */}
+      {session && (
+        <div className="mb-4">
+          <button
+            onClick={() => {
+              setEditingResource(null);
+              setShowResourceForm(true);
+            }}
+            className="bg-green-500 px-4 py-2 rounded text-black"
+          >
+            Add Resource
+          </button>
+        </div>
+      )}
+
       <div className="flex justify-between items-center mb-4">
         <h2 className="text-2xl font-semibold text-primary">Popular Resources</h2>
         <div className="space-x-4">
@@ -199,11 +219,13 @@ const ResourceFeed = () => {
           </button>
         </div>
       </div>
+
       {showMap && (
         <div className="mb-8 h-[400px] rounded-lg overflow-hidden shadow-lg">
           <DynamicResourceMap resources={filteredResources} />
         </div>
       )}
+
       <div className="relative">
         <div
           ref={feedRef}
@@ -224,13 +246,15 @@ const ResourceFeed = () => {
                   <motion.button
                     whileTap={{ scale: 0.9 }}
                     onClick={(e) => {
-                      e.stopPropagation()
-                      toggleFavorite(resource.id)
+                      e.stopPropagation();
+                      toggleFavorite(resource.id);
                     }}
                   >
                     <Star
                       className={`h-5 w-5 ${
-                        favorites.includes(resource.id) ? "text-secondary fill-current" : "text-muted-foreground"
+                        favorites.includes(resource.id)
+                          ? "text-secondary fill-current"
+                          : "text-muted-foreground"
                       }`}
                     />
                   </motion.button>
@@ -243,10 +267,36 @@ const ResourceFeed = () => {
                   NEW
                 </span>
               )}
+
+              {/* Show Edit/Delete buttons if this resource belongs to the logged-in user */}
+              {session && Number(session.user.id) === resource.userId && (
+                <div className="mt-2 flex space-x-2">
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setEditingResource(resource);
+                      setShowResourceForm(true);
+                    }}
+                    className="bg-blue-500 text-black px-2 py-1 rounded"
+                  >
+                    Edit
+                  </button>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleDeleteResource(resource.id);
+                    }}
+                    className="bg-red-500 text-black px-2 py-1 rounded"
+                  >
+                    Delete
+                  </button>
+                </div>
+              )}
             </motion.div>
           ))}
         </div>
       </div>
+
       {selectedResource && (
         <div className="mt-8 bg-card rounded-lg shadow-md p-6 glassmorphism">
           <h3 className="text-2xl font-semibold mb-4 text-primary">{selectedResource.name}</h3>
@@ -272,6 +322,7 @@ const ResourceFeed = () => {
           </button>
         </div>
       )}
+
       <FilterModal
         isOpen={showFilterModal}
         onClose={() => setShowFilterModal(false)}
@@ -280,8 +331,20 @@ const ResourceFeed = () => {
         categories={Array.from(new Set(resources.map((r) => r.category)))}
       />
       <ReviewModal isOpen={showReviewModal} onClose={() => setShowReviewModal(false)} onSubmit={handleAddReview} />
-    </div>
-  )
-}
 
-export default ResourceFeed
+      {/* ResourceForm Modal for creating or editing a resource */}
+      {showResourceForm && (
+        <ResourceForm
+          resource={editingResource ?? undefined}
+          onSubmit={handleResourceFormSubmit}
+          onClose={() => {
+            setShowResourceForm(false);
+            setEditingResource(null);
+          }}
+        />
+      )}
+    </div>
+  );
+};
+
+export default ResourceFeed;

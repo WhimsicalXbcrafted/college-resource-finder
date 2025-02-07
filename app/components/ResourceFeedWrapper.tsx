@@ -10,6 +10,6 @@ const ResourceFeed = dynamic(
   }
 );
 
-export default function ResourceFeedWrapper() {
-  return <ResourceFeed />;
+export default function ResourceFeedWrapper({ searchTerm }: { searchTerm: string}) {
+  return <ResourceFeed searchTerm={searchTerm}/>;
 }

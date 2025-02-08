@@ -194,7 +194,7 @@ const ResourceFeed = ({ searchTerm }: ResourceFeedProps) => {
               setEditingResource(null);
               setShowResourceForm(true);
             }}
-            className="bg-green-500 px-4 py-2 rounded text-black"
+            className="bg-primary text-primary-foreground px-4 py-2 rounded-lg"
           >
             Add Resource
           </button>
@@ -277,7 +277,7 @@ const ResourceFeed = ({ searchTerm }: ResourceFeedProps) => {
                       setEditingResource(resource);
                       setShowResourceForm(true);
                     }}
-                    className="bg-blue-500 text-black px-2 py-1 rounded"
+                    className="bg-secondary text-secondary-foreground px-2 py-1 rounded"
                   >
                     Edit
                   </button>
@@ -286,7 +286,7 @@ const ResourceFeed = ({ searchTerm }: ResourceFeedProps) => {
                       e.stopPropagation();
                       handleDeleteResource(resource.id);
                     }}
-                    className="bg-red-500 text-black px-2 py-1 rounded"
+                    className="bg-red-500 text-primary-foreground px-2 py-1 rounded"
                   >
                     Delete
                   </button>

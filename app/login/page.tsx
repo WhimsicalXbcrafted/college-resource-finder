@@ -9,6 +9,7 @@ import { signIn } from "next-auth/react"
 export default function Login() {
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
+  const [error, setError] = useState("")
   const router = useRouter()
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -21,7 +22,11 @@ export default function Login() {
     })
 
     if (result?.error) {
-      alert(result.error)
+      if (result.error === "CredentialsSignin") {
+        setError("Email or password is incorrect")
+      } else {
+        setError(result.error)
+      }
     } else {
       router.push('/')
     }
@@ -44,6 +49,11 @@ export default function Login() {
         className="mt-8 sm:mx-auto sm:w-full sm:max-w-md"
       >
         <div className="bg-card py-8 px-4 shadow sm:rounded-lg sm:px-10">
+          {error && ( 
+            <div className="mb-4 p-2 bg-red-100 text-red-700 text-sm rounded-md">
+              {error}
+            </div>
+          )}
           <form className="space-y-6" onSubmit={handleLogin}>
             <div>
               <label htmlFor="email" className="block text-sm font-medium text-card-foreground">
@@ -104,7 +114,7 @@ export default function Login() {
             <div className="mt-6">
               <Link
                 href="/signup"
-                className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-primary bg-secondary hover:bg-secondary/80 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-secondary"
+                className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-black bg-secondary hover:bg-secondary/80 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-secondary"
               >
                 Sign up
               </Link>
@@ -115,4 +125,3 @@ export default function Login() {
     </div>
   )
 }
-

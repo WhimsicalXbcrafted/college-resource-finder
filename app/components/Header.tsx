@@ -16,6 +16,10 @@ const Header = () => {
     router.push('/home')
   }
 
+  const handleSettings = () => {
+    router.push('/settings')
+  }
+
   return (
     <header className="bg-card border-b border-border glassmorphism">
       <div className="container mx-auto px-4 py-4 flex justify-between items-center">
@@ -30,10 +34,17 @@ const Header = () => {
                 className="flex items-center space-x-2 bg-muted text-foreground px-4 py-2 rounded-md transition duration-300 hover:bg-accent hover:text-accent-foreground"
               >
                 <UserCircle className="h-5 w-5" />
-                <span>{session.user?.email}</span> {/* Display user email */}
+                <span>{session.user?.email}</span>
               </button>
               {showDropdown && (
                 <div className="absolute right-0 mt-2 w-48 bg-card rounded-md shadow-lg py-1 z-10 glassmorphism">
+                   <button
+                    onClick={handleSettings}
+                    className="flex items-center w-full text-left px-4 py-2 text-sm text-foreground hover:bg-accent hover:text-accent-foreground"
+                  >
+                    <Settings className="h-4 w-4 mr-2" />
+                    Settings
+                  </button>
                   <button
                     onClick={handleLogout}
                     className="flex items-center w-full text-left px-4 py-2 text-sm text-foreground hover:bg-accent hover:text-accent-foreground"
@@ -44,22 +55,7 @@ const Header = () => {
                 </div>
               )}
             </div>
-          ) : (
-            <div className="space-x-4">
-              <Link
-                href="/login"
-                className="bg-primary text-primary-foreground px-4 py-2 rounded-md hover:bg-primary/90 transition duration-300"
-              >
-                Login
-              </Link>
-              <Link
-                href="/signup"
-                className="bg-secondary text-secondary-foreground px-4 py-2 rounded-md hover:bg-secondary/80 transition duration-300"
-              >
-                Sign Up
-              </Link>
-            </div>
-          )}
+          ) : null}
         </div>
       </div>
     </header>

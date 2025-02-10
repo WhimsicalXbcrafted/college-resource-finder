@@ -28,7 +28,7 @@ export default function Login() {
         setError(result.error)
       }
     } else {
-      router.push('/')
+      router.push('/main')
     }
   }
   return (

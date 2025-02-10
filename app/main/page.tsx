@@ -1,10 +1,10 @@
 import { getServerSession } from 'next-auth/next';
 import { redirect } from 'next/navigation';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
-import Header from './components/Header';
-import Banner from './components/Banner';
-import HomeClient from './components/HomeClient';
-import ThemeToggle from "./components/ThemeToggle"
+import Header from '../components/Header';
+import Banner from '../components/Banner';
+import HomeClient from '../components/HomeClient';
+import ThemeToggle from "../components/ThemeToggle"
 
 export default async function Home() { 
   const session = await getServerSession(authOptions);

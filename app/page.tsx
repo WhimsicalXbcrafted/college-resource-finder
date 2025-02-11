@@ -3,8 +3,8 @@
 import { motion } from "framer-motion"
 import Link from "next/link"
 import { useEffect, useState } from "react"
-import ParticleBackground from "../components/ParticleBackground"
-import ThemeToggle from "../components/ThemeToggle"
+import ParticleBackground from "./components/ParticleBackground"
+import ThemeToggle from "./components/ThemeToggle"
 import { Search, MessageCircle, HelpCircle, PlusCircle } from "lucide-react"
 
 export default function HomePage() {

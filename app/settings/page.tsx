@@ -16,34 +16,122 @@ export default function SettingsPage() {
   const [email, setEmail] = useState('')
   const [avatarUrl, setAvatarUrl] = useState('/default-avatar.png')
   const [emailError, setEmailError] = useState('')
+  const [updateError, setUpdateError] = useState('')
 
   // Notification Preferences state
   const [emailNotifications, setEmailNotifications] = useState(true)
   const [pushNotifications, setPushNotifications] = useState(false)
 
+  // Password state 
+  const [currentPassword, setCurrentPassword] = useState('')
+  const [newPassword, setNewPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('') 
+  const [passwordError, setPasswordError] = useState('')
+
   useEffect(() => {
     if (session?.user) {
-      setName(session.user.email?.split("@")[0] || "")
+      // Default name is set to the email (per requirement)
+      setName(session.user.email || '')
       setEmail(session.user.email || '')
     }
   }, [session])
 
-  // Handle for submission (for saving setting)
+  // Handle for saving profile updates
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault()
+    setUpdateError('')
     if (!isUWEmail(email)) {
       setEmailError("Please use a valid @uw.edu email address")
       return
     }
     setEmailError('')
 
-    // TODO: Implement API call to save changes
-    console.log("Saving changes")
+    try {
+      const response = await fetch('/api/user/update', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name,
+          email,
+          emailNotifications,
+          pushNotifications,
+        }),
+      })
 
-    // Simulating API call
-    await new Promise((resolve) => setTimeout(resolve, 1000))
+      if (!response.ok) {
+        const data = await response.json()
+        setUpdateError(data.error || "Failed to save changes")
+        return
+      }
 
-    alert('Changes saved successfully!')
+      alert('Changes saved successfully!')
+    } catch (error) {
+      console.error('Error saving changes:', error)
+      setUpdateError("Error saving changes")
+    }
+  } 
+
+  // Handle password update
+  const handlePasswordUpdate = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setPasswordError('')
+    if (newPassword !== confirmPassword) {
+      setPasswordError('Passwords do not match')
+      return
+    }
+
+    try {
+      const response = await fetch('/api/user/updatePassword', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          currentPassword,
+          newPassword,
+          email,
+        }),
+      })
+
+      if (!response.ok) {
+        const data = await response.json()
+        setPasswordError(data.error || "Failed to update password")
+        return
+      }
+
+      alert('Password updated successfully!')
+    } catch (error) {
+      console.error('Error updating password:', error)
+      setPasswordError("Error updating password")
+    }
+  }
+
+  // Handle profile picture change remains the same
+  const handleProfilePictureChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (file) {
+      const formData = new FormData()
+      formData.append('profilePicture', file)
+      formData.append('email', email) // send email along with file
+
+      try {
+        const response = await fetch('/api/user/updateProfilePicture', {
+          method: 'POST',
+          body: formData,
+        })
+
+        if (!response.ok) {
+          const data = await response.json()
+          setUpdateError(data.error || "Failed to update profile picture")
+          return
+        }
+
+        const data = await response.json()
+        setAvatarUrl(data.avatarUrl)
+        alert('Profile picture updated successfully!')
+      } catch (error) {
+        console.error('Error uploading profile picture:', error)
+        setUpdateError("Error uploading profile picture")
+      }
+    }
   }
 
   const handleBack = () => {
@@ -77,12 +165,19 @@ export default function SettingsPage() {
             <div className="w-20 h-20 rounded-full overflow-hidden bg-muted">
               <img src={avatarUrl || "/placeholder.svg"} alt={name} className="w-full h-full object-cover" />
             </div>
-            <button
-              type="button"
-              className="border border-input px-4 py-2 rounded text-foreground hover:bg-accent hover:text-accent-foreground transition-colors"
+            <input
+              type="file"
+              accept="image/*"
+              onChange={handleProfilePictureChange}
+              className="hidden"
+              id="profile-picture-input"
+            />
+            <label
+              htmlFor="profile-picture-input"
+              className="border border-input px-4 py-2 rounded text-foreground hover:bg-accent hover:text-accent-foreground transition-colors cursor-pointer"
             >
               Change Picture
-            </button>
+            </label>
           </div>
           {/* Name Field */}
           <div className="space-y-2">
@@ -92,7 +187,7 @@ export default function SettingsPage() {
             <input
               id="name"
               type="text"
-              className="border border-input rounded p-2 w-full bg-background text-foreground dark:text-white"
+              className="border border-input rounded p-2 w-full bg-background text-primary"
               value={name}
               onChange={(e) => setName(e.target.value)}
             />
@@ -105,15 +200,17 @@ export default function SettingsPage() {
             <input
               id="email"
               type="email"
-              className="border border-input rounded p-2 w-full bg-background text-foreground dark:text-white"
+              className="border border-input rounded p-2 w-full bg-background text-primary"
               value={email}
               onChange={(e) => {
                 setEmail(e.target.value)
                 setEmailError("")
               }}
+              placeholder="yourname@uw.edu"
             />
             {emailError && <p className="text-red-500 text-sm">{emailError}</p>}
           </div>
+          {updateError && <p className="text-red-500 text-sm">{updateError}</p>}
         </form>
       </motion.div>
 
@@ -126,7 +223,7 @@ export default function SettingsPage() {
       >
         <h2 className="text-2xl font-semibold mb-2 text-primary">Account Security</h2>
         <p className="text-sm text-muted-foreground mb-4">Manage your account security</p>
-        <form onSubmit={handleSave} className="space-y-4">
+        <form onSubmit={handlePasswordUpdate} className="space-y-4">
           {/* Current Password */}
           <div className="space-y-2">
             <label htmlFor="current-password" className="block text-sm font-medium text-foreground">
@@ -135,7 +232,9 @@ export default function SettingsPage() {
             <input
               id="current-password"
               type="password"
-              className="border border-input rounded p-2 w-full bg-background text-foreground dark:text-white"
+              className="border border-input rounded p-2 w-full bg-background text-primary"
+              value={currentPassword}
+              onChange={(e) => setCurrentPassword(e.target.value)}
             />
           </div>
           {/* New Password */}
@@ -146,7 +245,9 @@ export default function SettingsPage() {
             <input
               id="new-password"
               type="password"
-              className="border border-input rounded p-2 w-full bg-background text-foreground dark:text-white"
+              className="border border-input rounded p-2 w-full bg-background text-primary"
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
             />
           </div>
           {/* Confirm New Password */}
@@ -157,8 +258,11 @@ export default function SettingsPage() {
             <input
               id="confirm-password"
               type="password"
-              className="border border-input rounded p-2 w-full bg-background text-foreground dark:text-white"
+              className="border border-input rounded p-2 w-full bg-background text-primary"
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
             />
+            {passwordError && <p className="text-red-500 text-sm">{passwordError}</p>}
           </div>
         </form>
       </motion.div>
@@ -208,9 +312,9 @@ export default function SettingsPage() {
         </form>
       </motion.div>
 
-      {/* Save Changes and Back Buttons */}
+      {/* Back and Save Changes Buttons */}
       <motion.div
-        className="flex justify-between items-center"
+        className="flex justify-end items-center space-x-4"
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5, delay: 0.8 }}

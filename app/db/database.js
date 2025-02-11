@@ -8,7 +8,11 @@ db.exec(`
   CREATE TABLE IF NOT EXISTS users (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     email TEXT UNIQUE NOT NULL,
-    password TEXT NOT NULL 
+    password TEXT NOT NULL,
+    name TEXT,
+    avatarUrl TEXT,
+    emailNotifications BOOLEAN DEFAULT 1,
+    pushNotifications BOOLEAN DEFAULT 0
   )
 `);
 
@@ -22,10 +26,10 @@ db.exec( `
     hours TEXT,
     category TEXT,
     coordinates TEXT, -- stored as a JSON string
-    avergaeRaating REAL DEFAULT 0,
+    avergaeRating REAL DEFAULT 0,
     createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
     updatedAt DATETIME DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (userID) REFERENCES users(id)
+    FOREIGN KEY (userId) REFERENCES users(id)
   )
 `)
 

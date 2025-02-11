@@ -47,7 +47,7 @@ export default function SettingsPage() {
     setEmailError('')
 
     try {
-      const response = await fetch('/api/user/update', {
+      const response = await fetch('/api/save', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -81,7 +81,7 @@ export default function SettingsPage() {
     }
 
     try {
-      const response = await fetch('/api/user/updatePassword', {
+      const response = await fetch('/api/updatePassword', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -104,7 +104,7 @@ export default function SettingsPage() {
     }
   }
 
-  // Handle profile picture change remains the same
+  // Handle profile picture change
   const handleProfilePictureChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (file) {
@@ -113,7 +113,7 @@ export default function SettingsPage() {
       formData.append('email', email) // send email along with file
 
       try {
-        const response = await fetch('/api/user/updateProfilePicture', {
+        const response = await fetch('/api/profilePicture', {
           method: 'POST',
           body: formData,
         })
@@ -132,6 +132,40 @@ export default function SettingsPage() {
         setUpdateError("Error uploading profile picture")
       }
     }
+  }
+
+  const handleEmailNotification = async () => {
+    try {
+      const response = await fetch('/api/notifications', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email,
+        }),
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to send email notification')
+      }
+
+      alert('Email notification sent successfully!')
+    } catch (error) {
+      console.error('Error sending email notification:', error)
+      alert('Error sending email notification')
+    }
+  }
+
+  const handlePushNotification = () => {
+    const notification = document.createElement('div')
+    notification.className = 'fixed bottom-4 right-4 bg-primary text-primary-foreground p-4 rounded shadow-lg'
+    notification.innerText = 'This is a push notification!'
+    document.body.appendChild(notification)
+
+    setTimeout(() => {
+      document.body.removeChild(notification)
+    }, 3000)
   }
 
   const handleBack = () => {
@@ -334,6 +368,29 @@ export default function SettingsPage() {
         >
           <Save className="w-4 h-4 mr-2" />
           Save Changes
+        </button>
+      </motion.div>
+
+      {/* Email and Push Notification Buttons */}
+      <motion.div
+        className="flex justify-end items-center space-x-4"
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5, delay: 1.0 }}
+      >
+        <button
+          type="button"
+          onClick={handleEmailNotification}
+          className="flex items-center bg-primary text-primary-foreground px-4 py-2 rounded hover:bg-primary/90 transition-colors"
+        >
+          Send Email Notification
+        </button>
+        <button
+          type="button"
+          onClick={handlePushNotification}
+          className="flex items-center bg-primary text-primary-foreground px-4 py-2 rounded hover:bg-primary/90 transition-colors"
+        >
+          Show Push Notification
         </button>
       </motion.div>
     </div>

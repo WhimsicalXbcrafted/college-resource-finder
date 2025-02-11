@@ -8,6 +8,7 @@ import dynamic from "next/dynamic"
 import FilterModal from "./FilterModal"
 import ReviewModal from "./ReviewModal"
 import ResourceForm from "./ResourceForm"
+import Image from "next/image"
 
 const DynamicResourceMap = dynamic(() => import("./ResourceMap"), {
   ssr: false,
@@ -33,6 +34,10 @@ interface Resource {
   averageRating: number
   reviews: Review[]
   userId?: number
+  user?: {
+    image?: string
+    email?: string
+  }
 }
 
 interface ResourceFeedProps {
@@ -53,54 +58,15 @@ const ResourceFeed = ({ searchTerm }: ResourceFeedProps) => {
   const feedRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    // Simulating API call to fetch resources
-    const fetchedResources: Resource[] = [
-      {
-        id: 1,
-        name: "Odegaard Library",
-        description: "Main campus library with study spaces",
-        location: "Central Campus",
-        hours: "24/7",
-        category: "Library",
-        coordinates: [47.6564, -122.3095],
-        averageRating: 4.5,
-        reviews: [],
-        userId: 1, // Example user id
-      },
-      {
-        id: 2,
-        name: "HUB (Husky Union Building)",
-        description: "Student center with food and event spaces",
-        location: "Central Campus",
-        hours: "7AM - 11PM",
-        category: "Student Center",
-        coordinates: [47.6553, -122.305],
-        averageRating: 4.2,
-        reviews: [],
-        userId: 2,
-      },
-      // ... other resources
-    ];
-    setResources(fetchedResources);
-
-    // Simulate a new resource being added after 5 seconds
-    setTimeout(() => {
-      const newResource: Resource = {
-        id: 9,
-        name: "New Student Lounge",
-        description: "A brand new lounge for students to relax and study",
-        location: "West Campus",
-        hours: "24/7",
-        category: "Student Center",
-        coordinates: [47.658, -122.315],
-        isNew: true,
-        averageRating: 0,
-        reviews: [],
-        userId: Number(session?.user?.id) || 0, // assign current user's id if available
-      };
-      setResources((prevResources) => [...prevResources, newResource]);
-    }, 5000);
-  }, [session]);
+    const fetchResources = async () => {
+      const res = await fetch('/api/resources');
+      if (res.ok) {
+        const data = await res.json();
+        setResources(data);
+      }
+    };
+    fetchResources();
+  }, []);
 
   // Combine filtering by category and search term
   const filteredResources = resources.filter((resource) => {
@@ -151,37 +117,41 @@ const ResourceFeed = ({ searchTerm }: ResourceFeedProps) => {
 
   // Handler to submit the resource form (create or update)
   const handleResourceFormSubmit = async (data: any) => {
-    if (data.id) {
-      // Update existing resource (PUT)
-      const res = await fetch(`/api/resources/${data.id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
-      });
-      if (res.ok) {
-        const updated = await res.json();
-        setResources((prev) =>
-          prev.map((r) => (r.id === updated.resource.id ? updated.resource : r))
-        );
+    try {
+      if (data.id) {
+        // Update existing resource
+        const res = await fetch(`/api/resources/${data.id}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(data),
+        });
+        if (res.ok) {
+          const { resource } = await res.json();
+          setResources((prev) =>
+            prev.map((r) => (r.id === resource.id ? resource : r))
+          );
+        } else {
+          throw new Error("Failed to update resource");
+        }
       } else {
-        alert("Failed to update resource.");
+        // Create new resource
+        const res = await fetch('/api/resources', {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ ...data, userId: session?.user?.id }),
+        });
+        if (res.ok) {
+          const { resource } = await res.json();
+          setResources((prev) => [...prev, resource]);
+        } else {
+          throw new Error("Failed to create resource");
+        }
       }
-    } else {
-      // Create new resource (POST)
-      const res = await fetch(`/api/resources`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...data, userId: Number(session?.user?.id) }),
-      });
-      if (res.ok) {
-        const newResource = await res.json();
-        setResources((prev) => [...prev, newResource.resource]);
-      } else {
-        alert("Failed to create resource.");
-      }
+      setShowResourceForm(false);
+      setEditingResource(null);
+    } catch (error) {
+      alert(error instanceof Error ? error.message : "An error occurred");
     }
-    setShowResourceForm(false);
-    setEditingResource(null);
   };
 
   return (
@@ -241,23 +211,43 @@ const ResourceFeed = ({ searchTerm }: ResourceFeedProps) => {
             >
               <div className="flex justify-between items-start">
                 <h3 className="text-xl font-semibold text-primary">{resource.name}</h3>
-                <div className="flex items-center">
-                  <span className="text-secondary mr-2">{resource.averageRating.toFixed(1)}</span>
-                  <motion.button
-                    whileTap={{ scale: 0.9 }}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      toggleFavorite(resource.id);
-                    }}
-                  >
-                    <Star
-                      className={`h-5 w-5 ${
-                        favorites.includes(resource.id)
-                          ? "text-secondary fill-current"
-                          : "text-muted-foreground"
-                      }`}
-                    />
-                  </motion.button>
+                <div className="flex items-center space-x-4">
+                  {/* Show user info */}
+                  <div className="flex items-center space-x-2">
+                    {resource.user?.image && (
+                      <Image
+                        src={resource.user.image}
+                        alt="User"
+                        width={24}
+                        height={24}
+                        className="rounded-full"
+                      />
+                    )}
+                    <span className="text-sm text-muted-foreground">
+                      {resource.user?.email}
+                    </span>
+                  </div>
+                  {/* Rating and favorite */}
+                  <div className="flex items-center">
+                    <span className="text-secondary mr-2">
+                      {resource.averageRating.toFixed(1)}
+                    </span>
+                    <motion.button
+                      whileTap={{ scale: 0.9 }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        toggleFavorite(resource.id);
+                      }}
+                    >
+                      <Star
+                        className={`h-5 w-5 ${
+                          favorites.includes(resource.id)
+                            ? "text-secondary fill-current"
+                            : "text-muted-foreground"
+                        }`}
+                      />
+                    </motion.button>
+                  </div>
                 </div>
               </div>
               <p className="text-muted-foreground">{resource.description}</p>

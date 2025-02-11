@@ -1,18 +1,37 @@
 import { NextResponse } from 'next/server';
-import db from '../../db/database';
+import { prisma } from '@/lib/prisma';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '../auth/[...nextauth]/route';
 
 // GET: Retrieve all resources (or you could filter by user if neeeded)
 export async function GET() {
     try {
-        const resources = db.prepare(`SELECT * FROM resources`).all();
-        return NextResponse.json({ resources });
+        const resources = await prisma.resource.findMany({
+            include: {
+                user: {
+                    select: {
+                        id: true,
+                        email: true,
+                        image: true,
+                    }
+                }
+            }
+        });
+        return NextResponse.json(resources);
     } catch (error) {
-        console.error('Error fetching resources:', error);
-        return NextResponse.error();
+        console.error('GET /api/resources error:', error);
+        return NextResponse.json({ error: "Failed to fetch resources" }, { status: 500 });
     }
 }
 
 // POST: Create a new resource
+interface Review {
+    id: number;
+    userId: number;
+    rating: number;
+    comment: string;
+}
+
 interface Resource {
     id: number;
     userId: number;
@@ -21,7 +40,10 @@ interface Resource {
     location: string;
     hours: string;
     category: string;
-    coordinates: string;
+    coordinates: [number, number];
+    createdAt: Date;
+    reviews: Review[];
+    averageRating: number;
 }
 
 interface PostRequestBody {
@@ -36,16 +58,23 @@ interface PostRequestBody {
 
 export async function POST(req: Request) {
     try {
-        const { userId, name, description, location, hours, category, coordinates }: PostRequestBody = await req.json();
+        const session = await getServerSession(authOptions);
+        if (!session) {
+            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+        }
 
-        const result = db.prepare(`INSERT INTO resources (userId, name, description, location, hours, category, coordinates)
-            VALUES (?, ?, ?, ?, ?, ?, ?)`).run(userId, name, description, location, hours, category, JSON.stringify(coordinates));
+        const data = await req.json();
+        const resource = await prisma.resource.create({
+            data: {
+                ...data,
+                userId: session.user.id,
+                coordinates: data.coordinates ? JSON.stringify(data.coordinates) : null
+            }
+        });
 
-        const newResource: Resource = db.prepare(`SELECT * FROM resources WHERE id = ?`).get(result.lastInsertRowid);
-
-        return NextResponse.json({ resource: newResource }, { status: 201 });
+        return NextResponse.json(resource);
     } catch (error) {
-        console.error('Error creating resource:', error);
-        return NextResponse.json({ message: 'Error creating resource' }, { status: 500 });
+        console.error('POST /api/resources error:', error);
+        return NextResponse.json({ error: "Failed to create resource" }, { status: 500 });
     }
 }

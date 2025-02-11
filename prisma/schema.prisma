@@ -1,0 +1,47 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+model User {
+  id                 String    @id @default(cuid())
+  email              String    @unique
+  name               String?
+  image              String?
+  password           String
+  emailNotifications Boolean   @default(true)
+  pushNotifications  Boolean   @default(true)
+  resources          Resource[]
+  reviews            Review[]
+}
+
+model Resource {
+  id          String    @id @default(cuid())
+  name        String
+  description String?
+  location    String?
+  hours       String?
+  category    String?
+  coordinates Json      // Store as [lat, lng]
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  userId      String
+  user        User      @relation(fields: [userId], references: [id])
+  reviews     Review[]
+  averageRating Float   @default(0)
+}
+
+model Review {
+  id          String    @id @default(cuid())
+  rating      Float
+  comment     String
+  createdAt   DateTime  @default(now())
+  userId      String
+  resourceId  String
+  user        User      @relation(fields: [userId], references: [id])
+  resource    Resource  @relation(fields: [resourceId], references: [id])
+} 

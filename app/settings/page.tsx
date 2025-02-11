@@ -1,397 +1,274 @@
-'use client'
+"use client"
 
-import { useState, useEffect } from 'react'
-import { motion } from 'framer-motion'
-import { useRouter } from 'next/navigation'
-import { Save, ArrowLeft } from 'lucide-react'
-import { useSession } from 'next-auth/react'
-import { isUWEmail } from '../utils/emailValidator'
+import { useState, useRef } from "react"
+import { useSession } from "next-auth/react"
+import { motion } from "framer-motion"
+import { Camera, Bell, Lock, ArrowLeft } from "lucide-react"
+import { useRouter } from "next/navigation"
 
 export default function SettingsPage() {
+  const { data: session, update } = useSession()
   const router = useRouter()
-  const { data: session } = useSession()
-
-  // Profile Information state
-  const [name, setName] = useState('')
-  const [email, setEmail] = useState('')
-  const [avatarUrl, setAvatarUrl] = useState('/default-avatar.png')
-  const [emailError, setEmailError] = useState('')
-  const [updateError, setUpdateError] = useState('')
-
-  // Notification Preferences state
+  const [name, setName] = useState(session?.user?.name || "")
+  const [email, setEmail] = useState(session?.user?.email || "")
+  const [currentPassword, setCurrentPassword] = useState("")
+  const [newPassword, setNewPassword] = useState("")
+  const [confirmPassword, setConfirmPassword] = useState("")
   const [emailNotifications, setEmailNotifications] = useState(true)
-  const [pushNotifications, setPushNotifications] = useState(false)
+  const [pushNotifications, setPushNotifications] = useState(true)
+  const [error, setError] = useState("")
+  const [success, setSuccess] = useState("")
+  const [isLoading, setIsLoading] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
-  // Password state 
-  const [currentPassword, setCurrentPassword] = useState('')
-  const [newPassword, setNewPassword] = useState('')
-  const [confirmPassword, setConfirmPassword] = useState('') 
-  const [passwordError, setPasswordError] = useState('')
+  const inputClassName = "w-full p-3 border rounded-md focus:ring-2 focus:ring-primary text-foreground bg-background"
 
-  useEffect(() => {
-    if (session?.user) {
-      // Default name is set to the email (per requirement)
-      setName(session.user.email || '')
-      setEmail(session.user.email || '')
-    }
-  }, [session])
-
-  // Handle for saving profile updates
-  const handleSave = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    setUpdateError('')
-    if (!isUWEmail(email)) {
-      setEmailError("Please use a valid @uw.edu email address")
+    setIsLoading(true)
+    setError("")
+    setSuccess("")
+
+    // Validate passwords if changing
+    if (newPassword && !currentPassword) {
+      setError("Please enter your current password")
+      setIsLoading(false)
       return
     }
-    setEmailError('')
+
+    if (newPassword && newPassword !== confirmPassword) {
+      setError("New passwords do not match")
+      setIsLoading(false)
+      return
+    }
 
     try {
-      const response = await fetch('/api/save', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+      const response = await fetch('/api/settings/update', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
         body: JSON.stringify({
           name,
           email,
+          currentPassword: currentPassword || undefined,
+          newPassword: newPassword || undefined,
           emailNotifications,
           pushNotifications,
         }),
       })
 
+      const data = await response.json()
+      
       if (!response.ok) {
-        const data = await response.json()
-        setUpdateError(data.error || "Failed to save changes")
-        return
+        throw new Error(data.error || 'Failed to update settings')
       }
 
-      alert('Changes saved successfully!')
-    } catch (error) {
-      console.error('Error saving changes:', error)
-      setUpdateError("Error saving changes")
-    }
-  } 
-
-  // Handle password update
-  const handlePasswordUpdate = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setPasswordError('')
-    if (newPassword !== confirmPassword) {
-      setPasswordError('Passwords do not match')
-      return
-    }
-
-    try {
-      const response = await fetch('/api/updatePassword', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          currentPassword,
-          newPassword,
-          email,
-        }),
-      })
-
-      if (!response.ok) {
-        const data = await response.json()
-        setPasswordError(data.error || "Failed to update password")
-        return
-      }
-
-      alert('Password updated successfully!')
-    } catch (error) {
-      console.error('Error updating password:', error)
-      setPasswordError("Error updating password")
-    }
-  }
-
-  // Handle profile picture change
-  const handleProfilePictureChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (file) {
-      const formData = new FormData()
-      formData.append('profilePicture', file)
-      formData.append('email', email) // send email along with file
-
-      try {
-        const response = await fetch('/api/profilePicture', {
-          method: 'POST',
-          body: formData,
+      // Update session with new user data
+      if (data.user) {
+        await update({
+          ...session,
+          user: {
+            ...session?.user,
+            name: data.user.name,
+            email: data.user.email,
+          }
         })
-
-        if (!response.ok) {
-          const data = await response.json()
-          setUpdateError(data.error || "Failed to update profile picture")
-          return
-        }
-
-        const data = await response.json()
-        setAvatarUrl(data.avatarUrl)
-        alert('Profile picture updated successfully!')
-      } catch (error) {
-        console.error('Error uploading profile picture:', error)
-        setUpdateError("Error uploading profile picture")
       }
+
+      setSuccess(data.message || "Settings updated successfully!")
+      setCurrentPassword("")
+      setNewPassword("")
+      setConfirmPassword("")
+    } catch (err: any) {
+      setError(err.message || "Failed to update settings. Please try again.")
+      console.error("Settings update error:", err)
+    } finally {
+      setIsLoading(false)
     }
   }
 
-  const handleEmailNotification = async () => {
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    const formData = new FormData()
+    formData.append('image', file)
+
     try {
-      const response = await fetch('/api/notifications', {
+      setIsLoading(true)
+      setError("")
+      const response = await fetch('/api/settings/upload-image', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          email,
-        }),
+        body: formData,
       })
 
+      const data = await response.json()
+
       if (!response.ok) {
-        throw new Error('Failed to send email notification')
+        throw new Error(data.error || 'Failed to upload image')
       }
 
-      alert('Email notification sent successfully!')
-    } catch (error) {
-      console.error('Error sending email notification:', error)
-      alert('Error sending email notification')
+      await update({ ...session, user: { ...session?.user, image: data.imageUrl } })
+      setSuccess("Profile picture updated successfully!")
+    } catch (err: any) {
+      setError(err.message || "Failed to upload image. Please try again.")
+      console.error("Upload error:", err)
+    } finally {
+      setIsLoading(false)
     }
-  }
-
-  const handlePushNotification = () => {
-    const notification = document.createElement('div')
-    notification.className = 'fixed bottom-4 right-4 bg-primary text-primary-foreground p-4 rounded shadow-lg'
-    notification.innerText = 'This is a push notification!'
-    document.body.appendChild(notification)
-
-    setTimeout(() => {
-      document.body.removeChild(notification)
-    }, 3000)
-  }
-
-  const handleBack = () => {
-    router.push('/main')
   }
 
   return (
-    <div className="container mx-auto p-4 space-y-6 bg-background text-foreground">
-      {/* Page Title */}
-      <motion.h1
-        className="text-4xl font-bold text-primary mb-6"
-        initial={{ opacity: 0, y: -20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5 }}
-      >
-        Account Settings
-      </motion.h1>
-
-      {/* Profile Information Section */}
+    <div className="container mx-auto px-4 py-8">
       <motion.div
-        className="border border-border rounded shadow-md p-4 bg-card"
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5, delay: 0.2 }}
+        className="max-w-2xl mx-auto"
       >
-        <h2 className="text-2xl font-semibold mb-2 text-primary">Profile Information</h2>
-        <p className="text-sm text-muted-foreground mb-4">Update your personal information</p>
-        <form onSubmit={handleSave} className="space-y-4">
-          {/* Avatar and Change Picture Button */}
-          <div className="flex items-center space-x-4">
-            <div className="w-20 h-20 rounded-full overflow-hidden bg-muted">
-              <img src={avatarUrl || "/placeholder.svg"} alt={name} className="w-full h-full object-cover" />
+        <div className="flex items-center mb-8">
+          <button
+            onClick={() => router.push('/main')}
+            className="mr-4 p-2 hover:bg-gray-100 rounded-full"
+          >
+            <ArrowLeft className="h-6 w-6" />
+          </button>
+          <h1 className="text-3xl font-bold">Settings</h1>
+        </div>
+
+        {error && (
+          <div className="mb-4 p-3 bg-red-100 text-red-700 rounded-md">
+            {error}
+          </div>
+        )}
+
+        {success && (
+          <div className="mb-4 p-3 bg-green-100 text-green-700 rounded-md">
+            {success}
+          </div>
+        )}
+
+        <div className="mb-8 flex justify-center">
+          <div className="relative">
+            <div className="w-32 h-32 rounded-full overflow-hidden bg-gray-200">
+              {session?.user?.image ? (
+                <img
+                  src={session.user.image}
+                  alt="Profile"
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center text-gray-400">
+                  <Camera size={40} />
+                </div>
+              )}
             </div>
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              className="absolute bottom-0 right-0 bg-primary text-primary p-2 rounded-full hover:bg-primary/90"
+            >
+              <Camera size={20} />
+            </button>
             <input
               type="file"
+              ref={fileInputRef}
+              onChange={handleImageUpload}
               accept="image/*"
-              onChange={handleProfilePictureChange}
               className="hidden"
-              id="profile-picture-input"
             />
-            <label
-              htmlFor="profile-picture-input"
-              className="border border-input px-4 py-2 rounded text-foreground hover:bg-accent hover:text-accent-foreground transition-colors cursor-pointer"
-            >
-              Change Picture
-            </label>
           </div>
-          {/* Name Field */}
-          <div className="space-y-2">
-            <label htmlFor="name" className="block text-sm font-medium text-foreground">
-              Name
-            </label>
+        </div>
+
+        <form onSubmit={handleSubmit} className="space-y-6">
+          <div>
+            <label className="block text-sm font-medium mb-2">Name</label>
             <input
-              id="name"
               type="text"
-              className="border border-input rounded p-2 w-full bg-background text-primary"
               value={name}
               onChange={(e) => setName(e.target.value)}
+              className={inputClassName}
             />
           </div>
-          {/* Email Field */}
-          <div className="space-y-2">
-            <label htmlFor="email" className="block text-sm font-medium text-foreground">
-              Email
-            </label>
+
+          <div>
+            <label className="block text-sm font-medium mb-2">Email</label>
             <input
-              id="email"
               type="email"
-              className="border border-input rounded p-2 w-full bg-background text-primary"
               value={email}
-              onChange={(e) => {
-                setEmail(e.target.value)
-                setEmailError("")
-              }}
-              placeholder="yourname@uw.edu"
+              onChange={(e) => setEmail(e.target.value)}
+              className={inputClassName}
             />
-            {emailError && <p className="text-red-500 text-sm">{emailError}</p>}
           </div>
-          {updateError && <p className="text-red-500 text-sm">{updateError}</p>}
-        </form>
-      </motion.div>
 
-      {/* Account Security Section */}
-      <motion.div
-        className="border border-border rounded shadow-md p-4 bg-card"
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5, delay: 0.4 }}
-      >
-        <h2 className="text-2xl font-semibold mb-2 text-primary">Account Security</h2>
-        <p className="text-sm text-muted-foreground mb-4">Manage your account security</p>
-        <form onSubmit={handlePasswordUpdate} className="space-y-4">
-          {/* Current Password */}
-          <div className="space-y-2">
-            <label htmlFor="current-password" className="block text-sm font-medium text-foreground">
-              Current Password
-            </label>
-            <input
-              id="current-password"
-              type="password"
-              className="border border-input rounded p-2 w-full bg-background text-primary"
-              value={currentPassword}
-              onChange={(e) => setCurrentPassword(e.target.value)}
-            />
-          </div>
-          {/* New Password */}
-          <div className="space-y-2">
-            <label htmlFor="new-password" className="block text-sm font-medium text-foreground">
-              New Password
-            </label>
-            <input
-              id="new-password"
-              type="password"
-              className="border border-input rounded p-2 w-full bg-background text-primary"
-              value={newPassword}
-              onChange={(e) => setNewPassword(e.target.value)}
-            />
-          </div>
-          {/* Confirm New Password */}
-          <div className="space-y-2">
-            <label htmlFor="confirm-password" className="block text-sm font-medium text-foreground">
-              Confirm New Password
-            </label>
-            <input
-              id="confirm-password"
-              type="password"
-              className="border border-input rounded p-2 w-full bg-background text-primary"
-              value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
-            />
-            {passwordError && <p className="text-red-500 text-sm">{passwordError}</p>}
-          </div>
-        </form>
-      </motion.div>
-
-      {/* Notification Preferences Section */}
-      <motion.div
-        className="border border-border rounded shadow-md p-4 bg-card"
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5, delay: 0.6 }}
-      >
-        <h2 className="text-2xl font-semibold mb-2 text-primary">Notification Preferences</h2>
-        <p className="text-sm text-muted-foreground mb-4">Manage how you receive notifications</p>
-        <form onSubmit={handleSave} className="space-y-4">
-          {/* Email Notifications */}
-          <div className="flex items-center justify-between">
-            <div>
-              <label htmlFor="email-notifications" className="block text-sm font-medium text-foreground">
-                Email Notifications
-              </label>
-              <p className="text-sm text-muted-foreground">Receive notifications via email</p>
+          <div className="pt-6 border-t">
+            <h2 className="text-xl font-semibold mb-4 flex items-center">
+              <Lock className="mr-2" /> Change Password
+            </h2>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium mb-2">Current Password</label>
+                <input
+                  type="password"
+                  value={currentPassword}
+                  onChange={(e) => setCurrentPassword(e.target.value)}
+                  className={inputClassName}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-2">New Password</label>
+                <input
+                  type="password"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  className={inputClassName}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-2">Confirm New Password</label>
+                <input
+                  type="password"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  className={inputClassName}
+                />
+              </div>
             </div>
-            <input
-              id="email-notifications"
-              type="checkbox"
-              checked={emailNotifications}
-              onChange={(e) => setEmailNotifications(e.target.checked)}
-              className="w-5 h-5 text-primary bg-background border-input rounded focus:ring-primary"
-            />
           </div>
-          {/* Push Notifications */}
-          <div className="flex items-center justify-between">
-            <div>
-              <label htmlFor="push-notifications" className="block text-sm font-medium text-foreground">
-                Push Notifications
+
+          <div className="pt-6 border-t">
+            <h2 className="text-xl font-semibold mb-4 flex items-center">
+              <Bell className="mr-2" /> Notifications
+            </h2>
+            <div className="space-y-4">
+              <label className="flex items-center">
+                <input
+                  type="checkbox"
+                  checked={emailNotifications}
+                  onChange={(e) => setEmailNotifications(e.target.checked)}
+                  className="rounded border-gray-300 text-primary focus:ring-primary"
+                />
+                <span className="ml-2">Email Notifications</span>
               </label>
-              <p className="text-sm text-muted-foreground">Receive notifications on your device</p>
+              <label className="flex items-center">
+                <input
+                  type="checkbox"
+                  checked={pushNotifications}
+                  onChange={(e) => setPushNotifications(e.target.checked)}
+                  className="rounded border-gray-300 text-primary focus:ring-primary"
+                />
+                <span className="ml-2">Push Notifications</span>
+              </label>
             </div>
-            <input
-              id="push-notifications"
-              type="checkbox"
-              checked={pushNotifications}
-              onChange={(e) => setPushNotifications(e.target.checked)}
-              className="w-5 h-5 text-primary bg-background border-input rounded focus:ring-primary"
-            />
           </div>
+
+          <button
+            type="submit"
+            disabled={isLoading}
+            className="w-full bg-primary text-white py-3 rounded-md hover:bg-primary/90 disabled:opacity-50"
+          >
+            {isLoading ? "Saving..." : "Save Changes"}
+          </button>
         </form>
-      </motion.div>
-
-      {/* Back and Save Changes Buttons */}
-      <motion.div
-        className="flex justify-end items-center space-x-4"
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5, delay: 0.8 }}
-      >
-        <button
-          type="button"
-          onClick={handleBack}
-          className="flex items-center bg-secondary text-secondary-foreground px-4 py-2 rounded hover:bg-secondary/90 transition-colors"
-        >
-          <ArrowLeft className="w-4 h-4 mr-2" />
-          Back
-        </button>
-        <button
-          type="submit"
-          onClick={handleSave}
-          className="flex items-center bg-primary text-primary-foreground px-4 py-2 rounded hover:bg-primary/90 transition-colors"
-        >
-          <Save className="w-4 h-4 mr-2" />
-          Save Changes
-        </button>
-      </motion.div>
-
-      {/* Email and Push Notification Buttons */}
-      <motion.div
-        className="flex justify-end items-center space-x-4"
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5, delay: 1.0 }}
-      >
-        <button
-          type="button"
-          onClick={handleEmailNotification}
-          className="flex items-center bg-primary text-primary-foreground px-4 py-2 rounded hover:bg-primary/90 transition-colors"
-        >
-          Send Email Notification
-        </button>
-        <button
-          type="button"
-          onClick={handlePushNotification}
-          className="flex items-center bg-primary text-primary-foreground px-4 py-2 rounded hover:bg-primary/90 transition-colors"
-        >
-          Show Push Notification
-        </button>
       </motion.div>
     </div>
   )

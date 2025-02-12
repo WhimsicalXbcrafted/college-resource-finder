@@ -1,6 +1,6 @@
 import NextAuth, { NextAuthOptions, User as NextAuthUser } from 'next-auth';
 import CredentialsProvider from 'next-auth/providers/credentials';
-import db from '../../../db/database';
+import { prisma } from '@/lib/prisma';
 import bcrypt from 'bcryptjs';
 
 // Type definition for the user object from database
@@ -47,37 +47,26 @@ export const authOptions: NextAuthOptions = {
       },
 
       async authorize(credentials) {
-        if (!db) {
-          console.error('Database connection failed');
-          return null;
-        }
-
         if (!credentials?.email || !credentials?.password) {
           return null;
         }
 
         try {
-          // Get user from database with type assertion
-          const user = db.prepare<DatabaseUser>(
-            `SELECT * FROM users WHERE email = ?`
-          ).get(credentials.email) as DatabaseUser | undefined;
+          const user = await prisma.user.findUnique({
+            where: { email: credentials.email }
+          });
 
           if (!user) return null;
 
-          // Compare hashed password
-          const isValid = await bcrypt.compare(
-            credentials.password,
-            user.password
-          );
+          if (!user.password) return null;
+          const isValid = await bcrypt.compare(credentials.password, user.password);
 
-          return isValid 
-            ? { 
-              id: user.id.toString(), 
-              email: user.email,
-              name: user.name || '',
-              image: user.avatarUrl || '/default-avatar.png', } 
-            : null;
-
+          return isValid ? {
+            id: user.id,
+            email: user.email,
+            name: user.name || '',
+            image: user.avatarUrl || '/default-avatar.png'
+          } : null;
         } catch (error) {
           console.error('Authentication error:', error);
           return null;

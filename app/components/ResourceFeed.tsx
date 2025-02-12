@@ -116,41 +116,27 @@ const ResourceFeed = ({ searchTerm }: ResourceFeedProps) => {
   };
 
   // Handler to submit the resource form (create or update)
-  const handleResourceFormSubmit = async (data: any) => {
+  const handleResourceFormSubmit = async (resource: Partial<Resource>) => {
     try {
-      if (data.id) {
-        // Update existing resource
-        const res = await fetch(`/api/resources/${data.id}`, {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(data),
-        });
-        if (res.ok) {
-          const { resource } = await res.json();
-          setResources((prev) =>
-            prev.map((r) => (r.id === resource.id ? resource : r))
-          );
-        } else {
-          throw new Error("Failed to update resource");
-        }
-      } else {
-        // Create new resource
-        const res = await fetch('/api/resources', {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ ...data, userId: session?.user?.id }),
-        });
-        if (res.ok) {
-          const { resource } = await res.json();
-          setResources((prev) => [...prev, resource]);
-        } else {
-          throw new Error("Failed to create resource");
-        }
+      const response = await fetch('/api/resources', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(resource),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || 'Failed to create resource');
       }
+
+      const newResource = await response.json();
+      setResources([...resources, newResource]);
       setShowResourceForm(false);
-      setEditingResource(null);
     } catch (error) {
-      alert(error instanceof Error ? error.message : "An error occurred");
+      console.error('Failed to create resource:', error);
+      // Add error handling UI here
     }
   };
 

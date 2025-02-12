@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server';
-import db from '../../../db/database';
+import { prisma } from '@/lib/prisma';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '../../auth/[...nextauth]/route';
 
 // PUT: Update a resource
 interface ResourceUpdatePayload {
@@ -19,18 +21,21 @@ interface RequestParams {
 
 export async function PUT(req: Request, { params }: RequestParams) {
     try {
-        const { id } = params;
-        const { name, description, location, hours, category, coordinates }: ResourceUpdatePayload = await req.json();
+        const session = await getServerSession(authOptions);
+        if (!session?.user?.id) {
+            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+        }
 
-        db.prepare(`UPDATE resources SET name = ?, description = ?, location = ?, hours = ?, category = ?, coordinates = ?,
-            updatedAt = CURRENT_TIMESTAMP WHERE id = ?`).run(name, description, location, hours, category, JSON.stringify(coordinates), id);
-        
-        const updatedResource = db.prepare(`SELECT * FROM resources WHERE id = ?`).get(id);
+        const { name, description, location, hours, category, coordinates } = await req.json();
 
-        return NextResponse.json({ resource: updatedResource });
+        const resource = await prisma.resource.update({
+            where: { id: params.id },
+            data: { name, description, location, hours, category, coordinates },
+        });
+
+        return NextResponse.json(resource);
     } catch (error) {
-        console.error('Error updating resource:', error);
-        return NextResponse.json({ message: 'Error updating resource' }, { status: 500 });
+        return NextResponse.json({ error: "Failed to update resource" }, { status: 500 });
     }
 }
 
@@ -43,11 +48,17 @@ interface DeleteRequestParams {
 
 export async function DELETE(req: Request, { params }: DeleteRequestParams) {
     try {
-        const { id } = params;
-        db.prepare(`DELETE FROM resources WHERE id = ?`).run(id);
-        return NextResponse.json({ message: 'Resource deleted successfully' });
+        const session = await getServerSession(authOptions);
+        if (!session?.user?.id) {
+            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+        }
+
+        await prisma.resource.delete({
+            where: { id: params.id },
+        });
+
+        return NextResponse.json({ message: "Resource deleted successfully" });
     } catch (error) {
-        console.error('Error deleting resource:', error);
-        return NextResponse.json({ message: 'Error deleting resource' }, { status: 500 });
+        return NextResponse.json({ error: "Failed to delete resource" }, { status: 500 });
     }
 }

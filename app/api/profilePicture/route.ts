@@ -1,55 +1,50 @@
-import { NextApiRequest, NextApiResponse } from 'next';
-import db from '../../db/database';
-import formidable, { Fields, Files } from 'formidable';
+import { NextResponse } from 'next/server';
+import { prisma } from '@/lib/prisma';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '../auth/[...nextauth]/route';
+import { writeFile, mkdir } from 'fs/promises';
 import path from 'path';
 
-export const config = {
-  api: {
-    bodyParser: false,
-  },
-};
-
-const parseForm = (req: NextApiRequest): Promise<{ fields: Fields; files: Files }> => {
-  return new Promise((resolve, reject) => {
-    const form = formidable({
-      uploadDir: path.join(process.cwd(), 'public/uploads'),
-      keepExtensions: true,
-    });
-
-    form.parse(req, (err, fields, files) => {
-      if (err) return reject(err);
-      resolve({ fields, files });
-    });
-  });
-};
-
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  if (req.method !== 'POST') {
-    res.setHeader('Allow', ['POST']);
-    return res.status(405).end(`Method ${req.method} Not Allowed`);
-  }
-
+export async function POST(req: Request) {
   try {
-    const { fields, files } = await parseForm(req);
-    const file = files.profilePicture as formidable.File | undefined;
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const formData = await req.formData();
+    const file = formData.get('image') as File;
 
     if (!file) {
-      return res.status(400).json({ error: 'No profile picture uploaded' });
+      return NextResponse.json({ error: 'No file uploaded' }, { status: 400 });
     }
 
-    const filePath = path.join('/uploads', path.basename(file.filepath));
-    const email = fields.email;
+    // Create uploads directory if it doesn't exist
+    const uploadDir = path.join(process.cwd(), 'public/uploads');
+    await mkdir(uploadDir, { recursive: true });
 
-    if (!email) {
-      return res.status(400).json({ error: 'Email field is required' });
-    }
+    // Generate unique filename
+    const fileName = `${session.user.id}-${Date.now()}${path.extname(file.name)}`;
+    const filePath = path.join(uploadDir, fileName);
+    
+    // Save file
+    const bytes = await file.arrayBuffer();
+    await writeFile(filePath, Buffer.from(bytes));
 
-    const stmt = db.prepare('UPDATE users SET avatarUrl = ? WHERE email = ?');
-    stmt.run(filePath, email);
+    const imageUrl = `/uploads/${fileName}`;
 
-    return res.status(200).json({ avatarUrl: filePath });
+    // Update user profile with new image URL
+    await prisma.user.update({
+      where: { id: session.user.id },
+      data: { avatarUrl: imageUrl },
+    });
+
+    return NextResponse.json({ imageUrl });
   } catch (error) {
-    console.error('Error processing profile picture upload:', error);
-    return res.status(500).json({ error: 'Failed to update profile picture' });
+    console.error('Upload error:', error);
+    return NextResponse.json(
+      { error: 'Failed to upload image' },
+      { status: 500 }
+    );
   }
 }

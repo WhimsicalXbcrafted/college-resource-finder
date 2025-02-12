@@ -1,19 +1,18 @@
-import { NextApiRequest, NextApiResponse } from 'next';
+import { NextResponse } from 'next/server';
+import { prisma } from '@/lib/prisma';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '../auth/[...nextauth]/route';
 import nodemailer from 'nodemailer';
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  if (req.method !== 'POST') {
-    res.setHeader('Allow', ['POST']);
-    return res.status(405).end(`Method ${req.method} Not Allowed`);
-  }
-
-  const { email } = req.body;
-
-  if (!email) {
-    return res.status(400).json({ error: 'Email is required' });
-  }
-
+export async function POST(req: Request) {
   try {
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const { email } = await req.json();
+
     const transporter = nodemailer.createTransport({
       service: 'gmail',
       auth: {
@@ -22,18 +21,18 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       },
     });
 
-    const mailOptions = {
+    await transporter.sendMail({
       from: process.env.EMAIL_USER,
       to: email,
       subject: 'Notification',
       text: 'This is a notification email.',
-    };
+    });
 
-    await transporter.sendMail(mailOptions);
-
-    return res.status(200).json({ message: 'Email notification sent successfully' });
+    return NextResponse.json({ message: 'Email notification sent successfully' });
   } catch (error) {
-    console.error('Error sending email notification:', error);
-    return res.status(500).json({ error: 'Failed to send email notification' });
+    return NextResponse.json(
+      { error: 'Failed to send notification' },
+      { status: 500 }
+    );
   }
 }

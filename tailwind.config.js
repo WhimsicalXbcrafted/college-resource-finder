@@ -1,8 +1,14 @@
+/** @type {import('tailwindcss').Config} */
 const { fontFamily } = require("tailwindcss/defaultTheme")
 
 module.exports = {
   darkMode: ["class"],
-  content: ["./pages/**/*.{ts,tsx}", "./components/**/*.{ts,tsx}", "./app/**/*.{ts,tsx}", "./src/**/*.{ts,tsx}"],
+  content: [
+    "./pages/**/*.{ts,tsx}",
+    "./components/**/*.{ts,tsx}",
+    "./app/**/*.{ts,tsx}",
+    "./src/**/*.{ts,tsx}"
+  ],
   theme: {
     container: {
       center: true,
@@ -12,6 +18,7 @@ module.exports = {
       },
     },
     extend: {
+      // Color system using CSS variables for theme flexibility
       colors: {
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",
@@ -47,14 +54,17 @@ module.exports = {
           foreground: "hsl(var(--card-foreground))",
         },
       },
+      // Consistent border radius system
       borderRadius: {
         lg: "var(--radius)",
         md: "calc(var(--radius) - 2px)",
         sm: "calc(var(--radius) - 4px)",
       },
+      // Typography system
       fontFamily: {
         sans: ["var(--font-sans)", ...fontFamily.sans],
       },
+      // Animation definitions
       keyframes: {
         "accordion-down": {
           from: { height: 0 },

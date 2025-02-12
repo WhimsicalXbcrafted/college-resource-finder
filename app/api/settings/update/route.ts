@@ -42,7 +42,7 @@ export async function PUT(req: Request) {
 
     // Handle password change
     if (newPassword && currentPassword) {
-      const isValidPassword = await bcrypt.compare(currentPassword, user.password)
+      const isValidPassword = user.password && await bcrypt.compare(currentPassword, user.password)
       if (!isValidPassword) {
         return NextResponse.json(
           { error: "Current password is incorrect" }, 

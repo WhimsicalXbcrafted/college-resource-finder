@@ -1,9 +1,17 @@
+/**
+ * Resource API Route Handler
+ * Handles CRUD operations for resources
+ */
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '../auth/[...nextauth]/route';
+import { Prisma } from '@prisma/client';
 
-// GET: Retrieve all resources (or you could filter by user if neeeded)
+/**
+ * GET: Retrieve all resources
+ * @returns {Promise<NextResponse>} JSON response with resources or error
+ */
 export async function GET() {
     try {
         const resources = await prisma.resource.findMany({
@@ -12,7 +20,18 @@ export async function GET() {
                     select: {
                         id: true,
                         email: true,
-                        image: true,
+                        avatarUrl: true,
+                        name: true
+                    }
+                },
+                reviews: {
+                    include: {
+                        user: {
+                            select: {
+                                name: true,
+                                image: true
+                            }
+                        }
                     }
                 }
             }
@@ -24,57 +43,45 @@ export async function GET() {
     }
 }
 
-// POST: Create a new resource
-interface Review {
-    id: number;
-    userId: number;
-    rating: number;
-    comment: string;
-}
-
-interface Resource {
-    id: number;
-    userId: number;
-    name: string;
-    description: string;
-    location: string;
-    hours: string;
-    category: string;
-    coordinates: [number, number];
-    createdAt: Date;
-    reviews: Review[];
-    averageRating: number;
-}
-
-interface PostRequestBody {
-    userId: number;
-    name: string;
-    description: string;
-    location: string;
-    hours: string;
-    category: string;
-    coordinates: [number, number];
-}
-
+/**
+ * POST: Create a new resource
+ * @param {Request} req - The request object
+ * @returns {Promise<NextResponse>} JSON response with created resource or error
+ */
 export async function POST(req: Request) {
     try {
         const session = await getServerSession(authOptions);
-        if (!session) {
+        if (!session?.user?.id) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 
         const data = await req.json();
         const resource = await prisma.resource.create({
             data: {
-                ...data,
-                userId: session.user.id,
-                coordinates: data.coordinates ? JSON.stringify(data.coordinates) : null
+                name: data.name,
+                description: data.description || '',
+                location: data.location || '',
+                hours: data.hours || '',
+                category: data.category || '',
+                coordinates: data.coordinates || Prisma.JsonNull,
+                userId: session.user.id
+            },
+            include: {
+                user: {
+                    select: {
+                        name: true,
+                        image: true
+                    }
+                }
             }
         });
 
         return NextResponse.json(resource);
     } catch (error) {
         console.error('POST /api/resources error:', error);
-        return NextResponse.json({ error: "Failed to create resource" }, { status: 500 });
+        return NextResponse.json(
+            { error: error instanceof Error ? error.message : "Failed to create resource" }, 
+            { status: 500 }
+        );
     }
 }

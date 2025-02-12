@@ -13,7 +13,7 @@ const Header = () => {
 
   const handleLogout = async () => {
     await signOut({ redirect: false })
-    router.push('/home')
+    router.push('/')
   }
 
   const handleSettings = () => {

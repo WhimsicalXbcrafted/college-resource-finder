@@ -1,25 +1,39 @@
-import { NextApiRequest, NextApiResponse } from 'next';
-import db from '../../db/database';
+import { NextResponse } from 'next/server';
+import { prisma } from '@/lib/prisma';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '../auth/[...nextauth]/route';
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  if (req.method !== 'POST') {
-    res.setHeader('Allow', ['POST']);
-    return res.status(405).end(`Method ${req.method} Not Allowed`);
-  }
-
-  const { name, email, emailNotifications, pushNotifications } = req.body;
-
-  if (!email) {
-    return res.status(400).json({ error: 'Email is required' });
-  }
-
+export async function PUT(req: Request) {
   try {
-    const stmt = db.prepare('UPDATE users SET name = ?, emailNotifications = ?, pushNotifications = ? WHERE email = ?');
-    stmt.run(name, emailNotifications, pushNotifications, email);
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
 
-    return res.status(200).json({ message: 'Profile updated successfully' });
+    const { name, emailNotifications, pushNotifications } = await req.json();
+
+    const updatedUser = await prisma.user.update({
+      where: { id: session.user.id },
+      data: {
+        name,
+        emailNotifications,
+        pushNotifications,
+      },
+    });
+
+    return NextResponse.json({ 
+      message: 'Profile updated successfully',
+      user: {
+        id: updatedUser.id,
+        name: updatedUser.name,
+        email: updatedUser.email,
+      }
+    });
   } catch (error) {
     console.error('Error updating profile:', error);
-    return res.status(500).json({ error: 'Failed to update profile' });
+    return NextResponse.json(
+      { error: 'Failed to update profile' },
+      { status: 500 }
+    );
   }
 }

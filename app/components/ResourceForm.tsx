@@ -1,20 +1,19 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from 'react';
 import { MapContainer, TileLayer, Marker, useMapEvents } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
+import { Resource } from '@prisma/client';
+import { motion, AnimatePresence } from 'framer-motion';
+import { X, Upload, Image as ImageIcon } from 'lucide-react';
+import Image from 'next/image';
+import dynamic from 'next/dynamic';
+
+const Map = dynamic(() => import('./ResourceMap'), { ssr: false });
 
 interface ResourceFormProps {
-    resource?: {
-        id?: number;
-        name: string;
-        description: string;
-        location: string;
-        hours: string;
-        category: string;
-        coordinates: [number, number];
-    };
-    onSubmit: (data: any) => void;
+    resource?: Resource;
+    onSubmit: (resource: Partial<Resource> & { image?: File }) => void;
     onClose: () => void;
 }
 
@@ -36,97 +35,198 @@ const LocationPicker = ({ coordinates, setCoordinates }: {
     return <Marker position={[coordinates.lat, coordinates.lng]} />;
 };
 
-const ResourceForm = ({ resource, onSubmit, onClose }: ResourceFormProps) => {
+export function ResourceForm({ resource, onSubmit, onClose }: ResourceFormProps) {
     const [name, setName] = useState(resource?.name || '');
     const [description, setDescription] = useState(resource?.description || '');
     const [location, setLocation] = useState(resource?.location || '');
     const [hours, setHours] = useState(resource?.hours || '');
     const [category, setCategory] = useState(resource?.category || '');
     const [coordinates, setCoordinates] = useState<Coordinates>(
-        resource?.coordinates ? { lat: resource.coordinates[0], lng: resource.coordinates[1] } : { lat: 47.6553, lng: -122.3035 }
+        resource?.coordinates ? 
+            JSON.parse(resource.coordinates as string) : 
+            { lat: 47.6553, lng: -122.3035 }
     );
+    const [imageFile, setImageFile] = useState<File | null>(null);
+    const [imagePreview, setImagePreview] = useState<string>(resource?.imageUrl || '');
+    const fileInputRef = useRef<HTMLInputElement>(null);
+
+    const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (file) {
+            setImageFile(file);
+            const reader = new FileReader();
+            reader.onloadend = () => {
+                setImagePreview(reader.result as string);
+            };
+            reader.readAsDataURL(file);
+        }
+    };
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        onSubmit({ name, description, location, hours, category, coordinates, id: resource?.id });
+        onSubmit({
+            name,
+            description,
+            location,
+            hours,
+            category,
+            coordinates: JSON.stringify(coordinates),
+            id: resource?.id,
+            image: imageFile || undefined,
+        });
+    };
+
+    const handleMapClick = (lat: number, lng: number) => {
+        setCoordinates({ lat, lng });
     };
 
     return (
-        <div className="fixed inset-0 bg-background/80 backdrop-blur-sm flex items-center justify-center z-50">
-            <div className="bg-card p-6 rounded-lg shadow-lg max-w-2xl w-full">
-                <h2 className="text-2xl font-bold mb-4">{resource ? "Edit Resource" : "Add Resource"}</h2>
-                <form onSubmit={handleSubmit} className="space-y-4">
-                    <div>
-                        <label className="block">Name</label>
-                        <input
-                            type="text"
-                            value={name}
-                            onChange={(e) => setName(e.target.value)}
-                            className="w-full border rounded p-2 text-black"
-                            required
-                        />
+        <motion.div
+            className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={onClose}
+        >
+            <motion.div
+                className="fixed inset-4 md:inset-10 bg-card rounded-lg shadow-xl overflow-y-auto"
+                initial={{ scale: 0.95, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0.95, opacity: 0 }}
+                onClick={(e) => e.stopPropagation()}
+            >
+                <div className="p-6">
+                    <div className="flex justify-between items-center mb-6">
+                        <h2 className="text-2xl font-bold">
+                            {resource ? 'Edit Resource' : 'Add New Resource'}
+                        </h2>
+                        <button
+                            onClick={onClose}
+                            className="p-2 rounded-full hover:bg-secondary/10"
+                        >
+                            <X className="h-6 w-6" />
+                        </button>
                     </div>
-                    <div>
-                        <label className="block">Description</label>
-                        <textarea
-                            value={description}
-                            onChange={(e) => setDescription(e.target.value)}
-                            className="w-full border rounded p-2 text-black"
-                        ></textarea>
-                    </div>
-                    <div>
-                        <label className="block">Location</label>
-                        <input
-                            type="text"
-                            value={location}
-                            onChange={(e) => setLocation(e.target.value)}
-                            className="w-full border rounded p-2 text-black"
-                        />
-                    </div>
-                    <div>
-                        <label className="block">Hours</label>
-                        <input
-                            type="text"
-                            value={hours}
-                            onChange={(e) => setHours(e.target.value)}
-                            className="w-full border rounded p-2 text-black"
-                        />
-                    </div>
-                    <div>
-                        <label className="block">Category</label>
-                        <input
-                            type="text"
-                            value={category}
-                            onChange={(e) => setCategory(e.target.value)}
-                            className="w-full border rounded p- text-black"
-                        />
-                    </div>
-                    <div className="mb-4">
-                        <label className="block text-sm font-medium mb-2">Location</label>
-                        <div className="h-[300px] mb-2">
-                            <MapContainer
-                                center={[coordinates.lat, coordinates.lng]}
-                                zoom={15}
-                                style={{ height: "100%", width: "100%" }}
-                            >
-                                <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
-                                <LocationPicker coordinates={coordinates} setCoordinates={setCoordinates} />
-                            </MapContainer>
+
+                    <form onSubmit={handleSubmit} className="space-y-6">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div className="space-y-6">
+                                <div>
+                                    <label className="block text-sm font-medium mb-2">Name</label>
+                                    <input
+                                        type="text"
+                                        value={name}
+                                        onChange={(e) => setName(e.target.value)}
+                                        className="w-full p-2 rounded-md border bg-background"
+                                        required
+                                    />
+                                </div>
+
+                                <div>
+                                    <label className="block text-sm font-medium mb-2">Description</label>
+                                    <textarea
+                                        value={description}
+                                        onChange={(e) => setDescription(e.target.value)}
+                                        className="w-full p-2 rounded-md border bg-background h-32"
+                                    />
+                                </div>
+
+                                <div>
+                                    <label className="block text-sm font-medium mb-2">Location</label>
+                                    <input
+                                        type="text"
+                                        value={location}
+                                        onChange={(e) => setLocation(e.target.value)}
+                                        className="w-full p-2 rounded-md border bg-background"
+                                    />
+                                </div>
+
+                                <div>
+                                    <label className="block text-sm font-medium mb-2">Hours</label>
+                                    <input
+                                        type="text"
+                                        value={hours}
+                                        onChange={(e) => setHours(e.target.value)}
+                                        className="w-full p-2 rounded-md border bg-background"
+                                    />
+                                </div>
+
+                                <div>
+                                    <label className="block text-sm font-medium mb-2">Category</label>
+                                    <input
+                                        type="text"
+                                        value={category}
+                                        onChange={(e) => setCategory(e.target.value)}
+                                        className="w-full p-2 rounded-md border bg-background"
+                                    />
+                                </div>
+                            </div>
+
+                            <div className="space-y-6">
+                                <div>
+                                    <label className="block text-sm font-medium mb-2">Image</label>
+                                    <div 
+                                        className="relative h-[200px] border-2 border-dashed rounded-lg overflow-hidden cursor-pointer hover:border-primary transition-colors"
+                                        onClick={() => fileInputRef.current?.click()}
+                                    >
+                                        {imagePreview ? (
+                                            <Image
+                                                src={imagePreview}
+                                                alt="Preview"
+                                                fill
+                                                className="object-cover"
+                                            />
+                                        ) : (
+                                            <div className="absolute inset-0 flex flex-col items-center justify-center text-muted-foreground">
+                                                <Upload className="h-10 w-10 mb-2" />
+                                                <span>Click to upload image</span>
+                                            </div>
+                                        )}
+                                    </div>
+                                    <input
+                                        ref={fileInputRef}
+                                        type="file"
+                                        accept="image/*"
+                                        onChange={handleImageChange}
+                                        className="hidden"
+                                    />
+                                </div>
+
+                                <div>
+                                    <label className="block text-sm font-medium mb-2">Location on Map</label>
+                                    <div className="h-[300px] rounded-lg overflow-hidden">
+                                        <Map
+                                            resources={[]}
+                                            onMapClick={(lat, lng) => handleMapClick(lat, lng)}
+                                            center={coordinates}
+                                            showMarker={true}
+                                            zoom={13}
+                                        />
+                                    </div>
+                                </div>
+                            </div>
                         </div>
-                        <p className="text-sm text-muted-foreground">Click on the map to set location</p>
-                    </div>
-                    <div className="flex justify-end space-x-2">
-                        <button type="button" onClick={onClose} className="px-4 py-2 bg-secondary text-white rounded">
-                            Cancel
-                        </button>
-                        <button type="submit" className="px-4 py-2 bg-primary text-white rounded">
-                            {resource ? "Update" : "Create"}
-                        </button>
-                    </div>
-                </form>
-            </div>
-        </div>
+
+                        <div className="flex justify-end gap-4">
+                            <button
+                                type="button"
+                                onClick={onClose}
+                                className="px-4 py-2 rounded-md border hover:bg-secondary/10 transition-colors"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                type="submit"
+                                className="px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors"
+                            >
+                                {resource ? 'Save Changes' : 'Create Resource'}
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </motion.div>
+        </motion.div>
     );
-};
+}
 
 export default ResourceForm;

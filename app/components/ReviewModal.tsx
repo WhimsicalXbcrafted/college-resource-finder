@@ -1,20 +1,22 @@
 import { useState } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import { Star } from "lucide-react"
+import { Review } from '@prisma/client'
 
 interface ReviewModalProps {
   isOpen: boolean
   onClose: () => void
-  onSubmit: (review: { userId: number; rating: number; comment: string }) => void
+  resourceId: string
+  onSubmit: (review: Omit<Review, 'id' | 'createdAt' | 'updatedAt'>) => void
 }
 
-const ReviewModal = ({ isOpen, onClose, onSubmit }: ReviewModalProps) => {
+const ReviewModal = ({ isOpen, onClose, resourceId, onSubmit }: ReviewModalProps) => {
   const [rating, setRating] = useState(0)
   const [comment, setComment] = useState("")
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    onSubmit({ userId: 1, rating, comment }) // Using a dummy userId for now
+    onSubmit({ userId: '1', resourceId, rating, comment })
     setRating(0)
     setComment("")
   }

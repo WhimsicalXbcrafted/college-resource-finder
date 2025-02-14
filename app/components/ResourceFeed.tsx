@@ -1,183 +1,155 @@
 "use client"
 
-import { useState, useEffect, useRef } from "react"
-import { Clock, MapPin, Filter, Star } from "lucide-react"
+import { useState, useEffect } from "react"
 import { useSession } from "next-auth/react"
 import dynamic from "next/dynamic"
 import FilterModal from "./FilterModal"
 import ReviewModal from "./ReviewModal"
 import ResourceForm from "./ResourceForm"
 import { ResourceCard } from "./ResourceCard"
-import { Resource, Review } from '@prisma/client'
-import { ResourceDetailModal } from './ResourceDetailModal'
+import type { Resource, Review } from "@prisma/client"
+import { ResourceDetailModal } from "./ResourceDetailModal"
 
 const DynamicResourceMap = dynamic(() => import("./ResourceMap"), {
   ssr: false,
-  loading: () => <div className="h-[400px] bg-muted rounded-lg animate-pulse" />
+  loading: () => <div className="h-[400px] bg-muted rounded-lg animate-pulse" />,
 })
 
 type ResourceWithDetails = Resource & {
   user?: {
-    id: string;
-    email: string;
-    avatarUrl: string | null;
-    name: string | null;
-  } | null;
+    id: string
+    email: string
+    avatarUrl: string | null
+    name: string | null
+  } | null
   reviews: Array<{
-    id: string;
-    rating: number;
-    comment: string | null;
+    id: string
+    rating: number
+    comment: string | null
     user: {
-      name: string | null;
-      avatarUrl: string | null;
-    };
-  }>;
-};
+      name: string | null
+      avatarUrl: string | null
+    }
+  }>
+}
 
 interface ResourceFeedProps {
-  searchTerm: string;
+  searchTerm: string
 }
 
 const ResourceFeed = ({ searchTerm }: ResourceFeedProps) => {
-  const { data: session } = useSession();
-  const [resources, setResources] = useState<ResourceWithDetails[]>([]);
-  const [selectedResource, setSelectedResource] = useState<ResourceWithDetails | null>(null);
-  const [showMap, setShowMap] = useState(true);
-  const [showFilterModal, setShowFilterModal] = useState(false);
-  const [showReviewModal, setShowReviewModal] = useState(false);
-  const [filters, setFilters] = useState<string[]>([]);
-  const [favorites, setFavorites] = useState<number[]>([]);
-  const [showResourceForm, setShowResourceForm] = useState(false);
-  const [editingResource, setEditingResource] = useState<Resource | null>(null);
-  const feedRef = useRef<HTMLDivElement>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const { data: session } = useSession()
+  const [resources, setResources] = useState<ResourceWithDetails[]>([])
+  const [selectedResource, setSelectedResource] = useState<ResourceWithDetails | null>(null)
+  const [showMap, setShowMap] = useState(true)
+  const [showFilterModal, setShowFilterModal] = useState(false)
+  const [showReviewModal, setShowReviewModal] = useState(false)
+  const [filters, setFilters] = useState<string[]>([])
+  const [showResourceForm, setShowResourceForm] = useState(false)
+  const [editingResource, setEditingResource] = useState<Resource | null>(null)
+  const [isLoading, setIsLoading] = useState(true)
 
   const fetchResources = async () => {
     try {
-      setIsLoading(true);
-      const response = await fetch('/api/resources');
-      const data = await response.json();
-      setResources(data);
+      setIsLoading(true)
+      const response = await fetch("/api/resources")
+      const data = await response.json()
+      setResources(data)
     } catch (error) {
-      console.error('Failed to fetch resources:', error);
+      console.error("Failed to fetch resources:", error)
     } finally {
-      setIsLoading(false);
+      setIsLoading(false)
     }
-  };
+  }
 
   useEffect(() => {
-    fetchResources();
-  }, []);
+    fetchResources()
+  }, [searchTerm, filters]) // Added searchTerm and filters as dependencies
 
-  // Combine filtering by category and search term
   const filteredResources = resources.filter((resource) => {
-    const matchesCategory = filters.length === 0 || (resource.category && filters.includes(resource.category));
-    const searchLower = searchTerm.toLowerCase();
+    const matchesCategory = filters.length === 0 || (resource.category && filters.includes(resource.category))
+    const searchLower = searchTerm.toLowerCase()
     const matchesSearch =
       resource.name.toLowerCase().includes(searchLower) ||
-      (resource.description?.toLowerCase() || '').includes(searchLower);
-    return matchesCategory && matchesSearch;
-  });
+      (resource.description?.toLowerCase() || "").includes(searchLower)
+    return matchesCategory && matchesSearch
+  })
 
-  const toggleFavorite = (resourceId: number) => {
-    setFavorites((prevFavorites) =>
-      prevFavorites.includes(resourceId)
-        ? prevFavorites.filter((id) => id !== resourceId)
-        : [...prevFavorites, resourceId],
-    );
-  };
-
-  const handleAddReview = async (review: Omit<Review, 'id' | 'createdAt' | 'updatedAt'>) => {
-    if (!selectedResource) return;
+  const handleAddReview = async (review: Omit<Review, "id" | "createdAt" | "updatedAt">) => {
+    if (!selectedResource) return
 
     try {
-      const response = await fetch(`/api/resources/${selectedResource.id}/reviews`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+      const response = await fetch(`/api/resources/${selectedResource.id}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(review),
-      });
+      })
 
-      if (!response.ok) throw new Error('Failed to add review');
+      if (!response.ok) throw new Error("Failed to add review")
 
-      const newReview = await response.json();
+      const newReview = await response.json()
       const updatedResource = {
         ...selectedResource,
         reviews: [...selectedResource.reviews, newReview],
         averageRating:
           (selectedResource.averageRating * selectedResource.reviews.length + review.rating) /
           (selectedResource.reviews.length + 1),
-      };
+      }
 
-      setResources(prev =>
-        prev.map(r => (r.id === selectedResource.id ? updatedResource : r))
-      );
-      setSelectedResource(updatedResource);
-      setShowReviewModal(false);
+      setResources((prev) => prev.map((r) => (r.id === selectedResource.id ? updatedResource : r)))
+      setSelectedResource(updatedResource)
+      setShowReviewModal(false)
     } catch (error) {
-      console.error('Failed to add review:', error);
+      console.error("Failed to add review:", error)
     }
-  };
+  }
 
   const handleDelete = async (id: string) => {
     try {
-      await fetch(`/api/resources/${id}`, { method: 'DELETE' });
-      setResources(prev => prev.filter(resource => resource.id !== id));
+      await fetch(`/api/resources/${id}`, { method: "DELETE" })
+      setResources((prev) => prev.filter((resource) => resource.id !== id))
     } catch (error) {
-      console.error('Failed to delete resource:', error);
+      console.error("Failed to delete resource:", error)
     }
-  };
+  }
 
   const handleEdit = (resource: Resource) => {
-    setEditingResource(resource);
-    setShowResourceForm(true);
-  };
+    setEditingResource(resource)
+    setShowResourceForm(true)
+  }
 
-  // Handler to submit the resource form (create or update)
-  const handleResourceFormSubmit = async (resourceData: Partial<Resource>) => {
+  const handleResourceFormSubmit = async (formData: FormData) => {
     try {
-      const method = editingResource ? 'PUT' : 'POST';
-      const url = editingResource ? `/api/resources/${editingResource.id}` : '/api/resources';
-      
-      const formData = new FormData();
-      Object.entries(resourceData).forEach(([key, value]) => {
-        if (value !== undefined) {
-          if (key === 'image' && value instanceof File) {
-            formData.append('image', value);
-          } else {
-            formData.append(key, String(value));
-          }
-        }
-      });
+      const method = editingResource ? "PUT" : "POST"
+      const url = editingResource ? `/api/resources?id=${editingResource.id}` : "/api/resources"
 
       const response = await fetch(url, {
         method,
         body: formData,
-      });
+      })
 
-      if (!response.ok) throw new Error('Failed to save resource');
+      if (!response.ok) throw new Error("Failed to save resource")
 
-      const savedResource = await response.json();
-      
-      setResources(prev =>
-        editingResource
-          ? prev.map(r => (r.id === editingResource.id ? savedResource : r))
-          : [...prev, savedResource]
-      );
-      
-      setShowResourceForm(false);
-      setEditingResource(null);
+      const savedResource = await response.json()
+
+      setResources((prev) =>
+        editingResource ? prev.map((r) => (r.id === editingResource.id ? savedResource : r)) : [...prev, savedResource],
+      )
+
+      setShowResourceForm(false)
+      setEditingResource(null)
     } catch (error) {
-      console.error('Failed to save resource:', error);
+      console.error("Failed to save resource:", error)
     }
-  };
+  }
 
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="flex justify-between mb-6">
         <button
           onClick={() => {
-            setEditingResource(null);
-            setShowResourceForm(true);
+            setEditingResource(null)
+            setShowResourceForm(true)
           }}
           className="px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors"
         >
@@ -231,7 +203,7 @@ const ResourceFeed = ({ searchTerm }: ResourceFeedProps) => {
         isOpen={showReviewModal}
         onClose={() => setShowReviewModal(false)}
         onSubmit={handleAddReview}
-        resourceId={selectedResource?.id || ''}
+        resourceId={selectedResource?.id || ""}
       />
 
       {showResourceForm && (
@@ -239,8 +211,8 @@ const ResourceFeed = ({ searchTerm }: ResourceFeedProps) => {
           resource={editingResource ?? undefined}
           onSubmit={handleResourceFormSubmit}
           onClose={() => {
-            setShowResourceForm(false);
-            setEditingResource(null);
+            setShowResourceForm(false)
+            setEditingResource(null)
           }}
         />
       )}
@@ -253,7 +225,7 @@ const ResourceFeed = ({ searchTerm }: ResourceFeedProps) => {
         categories={Array.from(new Set(resources.map((r) => r.category).filter((c): c is string => c !== null)))}
       />
     </div>
-  );
-};
+  )
+}
 
-export default ResourceFeed;
+export default ResourceFeed

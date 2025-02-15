@@ -1,17 +1,11 @@
-import NextAuth, { NextAuthOptions, User as NextAuthUser } from 'next-auth';
+import NextAuth, { NextAuthOptions } from 'next-auth';
 import CredentialsProvider from 'next-auth/providers/credentials';
 import { prisma } from '@/lib/prisma';
 import bcrypt from 'bcryptjs';
 
-// Type definition for the user object from database
-interface DatabaseUser {
-  id: number;
-  email: string;
-  password: string;
-  name?: string;
-  avatarUrl?: string;
-}
-
+/**
+ * Extending NextAuth types for user, session, and JWT.
+ */
 declare module 'next-auth' {
   interface User {
     id: string;
@@ -36,8 +30,11 @@ declare module 'next-auth' {
   }
 }
 
+/**
+ * NextAuth configuration for authentication using credentials (email & password).
+ */
 export const authOptions: NextAuthOptions = {
-  secret: 'qO4Ak8uUQaiPvF7EO9xAK7AKg3g5Zgjl0Vf40dr2mnE=',
+  secret: process.env.NEXTAUTH_SECRET, // Use environment variable for security
   providers: [
     CredentialsProvider({
       name: 'Credentials',
@@ -45,27 +42,23 @@ export const authOptions: NextAuthOptions = {
         email: { label: 'Email', type: 'text' },
         password: { label: 'Password', type: 'password' },
       },
-
       async authorize(credentials) {
-        if (!credentials?.email || !credentials?.password) {
-          return null;
-        }
+        if (!credentials?.email || !credentials?.password) return null;
 
         try {
           const user = await prisma.user.findUnique({
-            where: { email: credentials.email }
+            where: { email: credentials.email },
           });
 
-          if (!user) return null;
-
-          if (!user.password) return null;
+          if (!user || !user.password) return null;
+          
           const isValid = await bcrypt.compare(credentials.password, user.password);
-
+          
           return isValid ? {
-            id: user.id,
+            id: user.id.toString(),
             email: user.email,
             name: user.name || '',
-            image: user.avatarUrl || '/default-avatar.png'
+            image: user.avatarUrl || '/uploads/default-avatar.png',
           } : null;
         } catch (error) {
           console.error('Authentication error:', error);
@@ -75,9 +68,10 @@ export const authOptions: NextAuthOptions = {
     }),
   ],
   session: {
-    strategy: 'jwt',
+    strategy: 'jwt', // Use JWT-based session handling
   },
   callbacks: {
+    /** Stores user information in JWT token */
     async jwt({ token, user }) {
       if (user) {
         token.id = user.id;
@@ -87,20 +81,19 @@ export const authOptions: NextAuthOptions = {
       }
       return token;
     },
+    /** Passes user details to the session */
     async session({ session, token }) {
-      if (token) {
-        session.user = {
-          id: token.id as string,
-          email: token.email as string,
-          name: token.name as string,
-          image: token.image as string,
-        };
-      }
+      session.user = {
+        id: token.id as string,
+        email: token.email as string,
+        name: token.name as string,
+        image: token.image as string,
+      };
       return session;
     },
   },
   pages: {
-    signIn: '/login',
+    signIn: '/login', // Custom sign-in page
   },
 };
 

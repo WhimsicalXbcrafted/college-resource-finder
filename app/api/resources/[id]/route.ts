@@ -103,7 +103,11 @@ export async function POST(req: Request, { params }: RequestParams) {
         rating,
         comment,
       },
-      include: {
+      select: {
+        id: true,
+        rating: true,
+        comment: true,
+        userId: true,
         user: {
           select: {
             name: true,

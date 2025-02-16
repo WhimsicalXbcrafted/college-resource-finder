@@ -1,7 +1,6 @@
 "use client"
 
 import { useState, useRef } from "react"
-import { Marker, useMapEvents } from "react-leaflet"
 import "leaflet/dist/leaflet.css"
 import type { Resource } from "@prisma/client"
 import { motion } from "framer-motion"
@@ -9,36 +8,24 @@ import { X, Upload } from "lucide-react"
 import Image from "next/image"
 import dynamic from "next/dynamic"
 
+// Dynamically importing the ResourceMap component with server-side rendering disabled
 const Map = dynamic(() => import("./ResourceMap"), { ssr: false })
 
+// Type definitions for the component props
 interface ResourceFormProps {
-  resource?: Resource
-  onSubmit: (resource: FormData) => void
-  onClose: () => void
+  resource?: Resource // Optional resource to be edited, if provided
+  onSubmit: (resource: FormData) => void // Callback for handling form submission
+  onClose: () => void // Callback for closing the form
 }
 
 interface Coordinates {
-  lat: number
-  lng: number
+  lat: number // Latitude of the location on the map
+  lng: number // Longitude of the location on the map
 }
 
-const LocationPicker = ({
-  coordinates,
-  setCoordinates,
-}: {
-  coordinates: Coordinates
-  setCoordinates: (coords: Coordinates) => void
-}) => {
-  useMapEvents({
-    click(e) {
-      setCoordinates({ lat: e.latlng.lat, lng: e.latlng.lng })
-    },
-  })
-
-  return <Marker position={[coordinates.lat, coordinates.lng]} />
-}
-
+// Main component for adding or editing a resource
 export function ResourceForm({ resource, onSubmit, onClose }: ResourceFormProps) {
+  // State variables for form fields (with fallback values from existing resource)
   const [name, setName] = useState(resource?.name || "")
   const [description, setDescription] = useState(resource?.description || "")
   const [location, setLocation] = useState(resource?.location || "")
@@ -47,10 +34,11 @@ export function ResourceForm({ resource, onSubmit, onClose }: ResourceFormProps)
   const [coordinates, setCoordinates] = useState<Coordinates>(
     resource?.coordinates ? JSON.parse(resource.coordinates as string) : { lat: 47.6553, lng: -122.3035 },
   )
-  const [imageFile, setImageFile] = useState<File | null>(null)
-  const [imagePreview, setImagePreview] = useState<string>(resource?.imageUrl || "")
-  const fileInputRef = useRef<HTMLInputElement>(null)
+  const [imageFile, setImageFile] = useState<File | null>(null) // Stores the image file
+  const [imagePreview, setImagePreview] = useState<string>(resource?.imageUrl || "") // Image preview URL
+  const fileInputRef = useRef<HTMLInputElement>(null) // Reference to file input
 
+  // Handles image file selection and preview
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (file) {
@@ -59,13 +47,14 @@ export function ResourceForm({ resource, onSubmit, onClose }: ResourceFormProps)
       reader.onloadend = () => {
         setImagePreview(reader.result as string)
       }
-      reader.readAsDataURL(file)
+      reader.readAsDataURL(file) // Read file as a data URL
     }
   }
 
+  // Handles form submission
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    const formData = new FormData()
+    const formData = new FormData() // Prepare form data to send to the server
     formData.append("name", name)
     formData.append("description", description)
     formData.append("location", location)
@@ -73,13 +62,9 @@ export function ResourceForm({ resource, onSubmit, onClose }: ResourceFormProps)
     formData.append("category", category)
     formData.append("coordinates", JSON.stringify(coordinates))
     if (imageFile) {
-      formData.append("image", imageFile)
+      formData.append("image", imageFile) // Add image file to form data if provided
     }
-    onSubmit(formData)
-  }
-
-  const handleMapClick = (lat: number, lng: number) => {
-    setCoordinates({ lat, lng })
+    onSubmit(formData) // Trigger the onSubmit callback with form data
   }
 
   return (
@@ -189,7 +174,7 @@ export function ResourceForm({ resource, onSubmit, onClose }: ResourceFormProps)
                   <div className="h-[300px] rounded-lg overflow-hidden">
                     <Map
                       resources={[]}
-                      onMapClick={(lat, lng) => handleMapClick(lat, lng)}
+                      onMapClick={(lat, lng) => setCoordinates({ lat, lng })}
                       center={coordinates}
                       showMarker={true}
                       zoom={13}

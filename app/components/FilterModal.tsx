@@ -8,7 +8,28 @@ interface FilterModalProps {
   categories: string[]
 }
 
+/**
+ * FilterModal Component
+ *
+ * A modal for filtering resources by categories. It allows the user to toggle categories
+ * on or off using checkboxes, and closes when the user clicks outside or on the close button.
+ *
+ * @param {Object} props - Component props.
+ * @param {boolean} props.isOpen - Determines if the modal is visible or not.
+ * @param {Function} props.onClose - A function to close the modal when called.
+ * @param {string[]} props.filters - A list of currently active filters (selected categories).
+ * @param {Function} props.setFilters - A function to update the active filters (selected categories).
+ * @param {string[]} props.categories - A list of category names that can be selected for filtering.
+ * @returns {JSX.Element} The FilterModal component.
+ */
 const FilterModal = ({ isOpen, onClose, filters, setFilters, categories }: FilterModalProps) => {
+  /**
+   * Toggles the filter status for a specific category.
+   * If the category is already selected, it is removed from the filters list;
+   * otherwise, it is added to the list.
+   * 
+   * @param {string} category - The category to toggle.
+   */
   const handleFilterToggle = (category: string) => {
     if (filters.includes(category)) {
       setFilters(filters.filter((f) => f !== category))

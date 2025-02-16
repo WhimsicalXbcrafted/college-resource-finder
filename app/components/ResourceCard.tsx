@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useSession } from 'next-auth/react';
 import { Resource } from '@prisma/client';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { MapPin, Clock, Star, Heart, Edit, Trash2, Image as ImageIcon } from 'lucide-react';
 import Image from 'next/image';
 
@@ -16,6 +16,7 @@ type ResourceWithDetails = Resource & {
         id: string;
         rating: number;
         comment: string | null;
+        userId: string;
         user: {
             name: string | null;
             avatarUrl: string | null;
@@ -27,17 +28,32 @@ interface ResourceCardProps {
     resource: ResourceWithDetails;
     onDelete: (id: string) => void;
     onEdit: (resource: Resource) => void;
-    onSelect: (resource: ResourceWithDetails) => void;
+    onSelect: (resource: ResourceWithDetails | null) => void;
 }
 
+/**
+ * ResourceCard Component
+ *
+ * This component displays a resource card that includes an image (if available), name, location, hours, and average rating.
+ * It provides functionalities for the user to like, edit, or delete their resources. If the current user is the owner of the resource, 
+ * they will be able to see the edit and delete buttons when hovering over the card.
+ *
+ * @param {ResourceWithDetails} resource - The resource object to display.
+ * @param {function} onDelete - A function to handle the deletion of a resource.
+ * @param {function} onEdit - A function to handle the editing of a resource.
+ * @param {function} onSelect - A function to handle selecting a resource.
+ * 
+ * @returns {JSX.Element} The ResourceCard component rendering a card with resource details.
+ */
 export function ResourceCard({ resource, onDelete, onEdit, onSelect }: ResourceCardProps) {
     const { data: session } = useSession();
     const [isLiked, setIsLiked] = useState(false);
     const [isHovered, setIsHovered] = useState(false);
 
+    // Determine if the current user is the owner of the resource
     const isOwner = session?.user?.id === resource.userId;
-    const coordinates = resource.coordinates ? JSON.parse(resource.coordinates as string) : null;
 
+    // Handle the like button click
     const handleLike = (e: React.MouseEvent) => {
         e.stopPropagation();
         setIsLiked(!isLiked);
@@ -143,4 +159,4 @@ export function ResourceCard({ resource, onDelete, onEdit, onSelect }: ResourceC
             )}
         </motion.div>
     );
-} 
+}

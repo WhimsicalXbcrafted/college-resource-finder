@@ -1,162 +1,223 @@
-"use client"
+"use client";
 
-import { useState, useEffect } from "react"
-import { useSession } from "next-auth/react"
-import dynamic from "next/dynamic"
-import FilterModal from "./FilterModal"
-import ReviewModal from "./ReviewModal"
-import ResourceForm from "./ResourceForm"
-import { ResourceCard } from "./ResourceCard"
-import type { Resource, Review } from "@prisma/client"
-import { ResourceDetailModal } from "./ResourceDetailModal"
+import { useState, useEffect } from "react";
+import { useSession } from "next-auth/react";
+import dynamic from "next/dynamic";
+import FilterModal from "./FilterModal";
+import ReviewModal from "./ReviewModal";
+import ResourceForm from "./ResourceForm";
+import { ResourceCard } from "./ResourceCard";
+import { ResourceDetailModal } from "./ResourceDetailModal";
+import type { Resource, Review } from "@prisma/client";
 
+
+// Dynamically imported component to show the resource map (SSR disabled).
 const DynamicResourceMap = dynamic(() => import("./ResourceMap"), {
   ssr: false,
   loading: () => <div className="h-[400px] bg-muted rounded-lg animate-pulse" />,
-})
+});
 
-type ResourceWithDetails = Resource & {
+/**
+ * Defines the structure of a Resource with its associated details like reviews and user info.
+ */
+export type ResourceWithDetails = Resource & {
   user?: {
-    id: string
-    email: string
-    avatarUrl: string | null
-    name: string | null
-  } | null
+    id: string;
+    email: string;
+    avatarUrl: string | null;
+    name: string | null;
+  } | null;
   reviews: Array<{
-    id: string
-    rating: number
-    comment: string | null
+    id: string;
+    rating: number;
+    comment: string | null;
+    userId: string;
     user: {
-      name: string | null
-      avatarUrl: string | null
-    }
-  }>
-}
+      name: string | null;
+      avatarUrl: string | null;
+    };
+  }>;
+};
 
+/**
+ * Props for the ResourceFeed component.
+ * 
+ * @param searchTerm - The term used to filter resources based on name or description.
+ */
 interface ResourceFeedProps {
-  searchTerm: string
+  searchTerm: string;
 }
 
+/**
+ * ResourceFeed component that handles the display of resources and their interactions.
+ * It fetches, filters, adds, edits, and deletes resources and reviews.
+ * 
+ * @component
+ */
 const ResourceFeed = ({ searchTerm }: ResourceFeedProps) => {
-  const { data: session } = useSession()
-  const [resources, setResources] = useState<ResourceWithDetails[]>([])
-  const [selectedResource, setSelectedResource] = useState<ResourceWithDetails | null>(null)
-  const [showMap, setShowMap] = useState(true)
-  const [showFilterModal, setShowFilterModal] = useState(false)
-  const [showReviewModal, setShowReviewModal] = useState(false)
-  const [filters, setFilters] = useState<string[]>([])
-  const [showResourceForm, setShowResourceForm] = useState(false)
-  const [editingResource, setEditingResource] = useState<Resource | null>(null)
-  const [isLoading, setIsLoading] = useState(true)
+  // Session data to get current user information.
+  const { data: session } = useSession();
 
-  const fetchResources = async () => {
-    try {
-      setIsLoading(true)
-      const response = await fetch("/api/resources")
-      const data = await response.json()
-      setResources(data)
-    } catch (error) {
-      console.error("Failed to fetch resources:", error)
-    } finally {
-      setIsLoading(false)
-    }
-  }
+  // State for managing resources, selected resource, filters, UI states, and loading state.
+  const [resources, setResources] = useState<ResourceWithDetails[]>([]);
+  const [selectedResource, setSelectedResource] = useState<ResourceWithDetails | null>(null);
+  const [filters, setFilters] = useState<string[]>([]);
+  const [show, setShow] = useState({
+    map: true,
+    filterModal: false,
+    reviewModal: false,
+    resourceForm: false,
+  });
+  const [editingResource, setEditingResource] = useState<Resource | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
+  // Fetch resources when the component mounts or when the search term or filters change.
   useEffect(() => {
-    fetchResources()
-  }, [searchTerm, filters]) // Added searchTerm and filters as dependencies
+    const fetchResources = async () => {
+      setIsLoading(true);
+      try {
+        const response = await fetch("/api/resources");
+        const data = await response.json();
+        setResources(data);
+      } catch (error) {
+        console.error("Failed to fetch resources:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchResources();
+  }, [searchTerm, filters]);
 
-  const filteredResources = resources.filter((resource) => {
-    const matchesCategory = filters.length === 0 || (resource.category && filters.includes(resource.category))
-    const searchLower = searchTerm.toLowerCase()
-    const matchesSearch =
-      resource.name.toLowerCase().includes(searchLower) ||
-      (resource.description?.toLowerCase() || "").includes(searchLower)
-    return matchesCategory && matchesSearch
-  })
+  // Filters resources based on the search term and selected categories.
+  const filteredResources = resources.filter(({ category, name, description }) => {
+    const matchesCategory = filters.length === 0 || (category && filters.includes(category));
+    const searchLower = searchTerm.toLowerCase();
+    return (
+      matchesCategory &&
+      (name.toLowerCase().includes(searchLower) || (description?.toLowerCase() ?? "").includes(searchLower))
+    );
+  });
 
+  /**
+   * Handles the addition of a review to a selected resource.
+   * 
+   * @param review - The review data to be added.
+   */
   const handleAddReview = async (review: Omit<Review, "id" | "createdAt" | "updatedAt">) => {
-    if (!selectedResource) return
-
+    if (!selectedResource) return;
     try {
       const response = await fetch(`/api/resources/${selectedResource.id}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(review),
-      })
+      });
+      if (!response.ok) throw new Error("Failed to add review");
 
-      if (!response.ok) throw new Error("Failed to add review")
-
-      const newReview = await response.json()
-      const updatedResource = {
-        ...selectedResource,
-        reviews: [...selectedResource.reviews, newReview],
-        averageRating:
-          (selectedResource.averageRating * selectedResource.reviews.length + review.rating) /
-          (selectedResource.reviews.length + 1),
-      }
-
-      setResources((prev) => prev.map((r) => (r.id === selectedResource.id ? updatedResource : r)))
-      setSelectedResource(updatedResource)
-      setShowReviewModal(false)
+      const newReview = await response.json();
+      setResources((prev) =>
+        prev.map((r) =>
+          r.id === selectedResource.id
+            ? { 
+                ...r, 
+                reviews: [...r.reviews, newReview], 
+                averageRating: (r.averageRating * r.reviews.length + review.rating) / (r.reviews.length + 1) 
+              }
+            : r
+        )
+      );
+      setSelectedResource((prev) => prev && { ...prev, reviews: [...prev.reviews, newReview] });
+      setShow((prev) => ({ ...prev, reviewModal: false }));
     } catch (error) {
-      console.error("Failed to add review:", error)
+      console.error("Failed to add review:", error);
     }
-  }
+  };
 
+  /**
+   * Handles the deletion of a resource from the system.
+   * 
+   * @param id - The ID of the resource to delete.
+   */
   const handleDelete = async (id: string) => {
     try {
-      await fetch(`/api/resources/${id}`, { method: "DELETE" })
-      setResources((prev) => prev.filter((resource) => resource.id !== id))
+      await fetch(`/api/resources/${id}`, { method: "DELETE" });
+      setResources((prev) => prev.filter((resource) => resource.id !== id));
     } catch (error) {
-      console.error("Failed to delete resource:", error)
+      console.error("Failed to delete resource:", error);
     }
-  }
+  };
 
+  /**
+   * Handles the deletion of a review from a resource.
+   * 
+   * @param reviewId - The ID of the review to delete.
+   */
+  const handleDeleteReview = async (reviewId: string) => {
+    try {
+      const response = await fetch(`/api/reviews/${reviewId}`, { method: "DELETE" });
+      if (!response.ok) throw new Error("Failed to delete review");
+
+      setSelectedResource((prev) =>
+        prev ? { ...prev, reviews: prev.reviews.filter((r) => r.id !== reviewId) } : null
+      );
+      setResources((prev) =>
+        prev.map((r) =>
+          r.id === selectedResource?.id ? { ...r, reviews: r.reviews.filter((r) => r.id !== reviewId) } : r
+        )
+      );
+    } catch (error) {
+      console.error("Failed to delete review:", error);
+    }
+  };
+
+  /**
+   * Handles editing an existing resource by setting it to the editing state.
+   * 
+   * @param resource - The resource to edit.
+   */
   const handleEdit = (resource: Resource) => {
-    setEditingResource(resource)
-    setShowResourceForm(true)
-  }
+    setEditingResource(resource);
+    setShow((prev) => ({ ...prev, resourceForm: true }));
+  };
 
+  /**
+   * Handles the submission of the resource form to add or update a resource.
+   * 
+   * @param formData - The form data for the resource.
+   */
   const handleResourceFormSubmit = async (formData: FormData) => {
     try {
-      const method = editingResource ? "PUT" : "POST"
-      const url = editingResource ? `/api/resources?id=${editingResource.id}` : "/api/resources"
+      const method = editingResource ? "PUT" : "POST";
+      const url = editingResource ? `/api/resources?id=${editingResource.id}` : "/api/resources";
+      const response = await fetch(url, { method, body: formData });
 
-      const response = await fetch(url, {
-        method,
-        body: formData,
-      })
+      if (!response.ok) throw new Error("Failed to save resource");
 
-      if (!response.ok) throw new Error("Failed to save resource")
-
-      const savedResource = await response.json()
-
+      const savedResource = await response.json();
       setResources((prev) =>
-        editingResource ? prev.map((r) => (r.id === editingResource.id ? savedResource : r)) : [...prev, savedResource],
-      )
+        editingResource ? prev.map((r) => (r.id === editingResource.id ? savedResource : r)) : [...prev, savedResource]
+      );
 
-      setShowResourceForm(false)
-      setEditingResource(null)
+      setEditingResource(null);
+      setShow((prev) => ({ ...prev, resourceForm: false }));
     } catch (error) {
-      console.error("Failed to save resource:", error)
+      console.error("Failed to save resource:", error);
     }
-  }
+  };
 
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="flex justify-between mb-6">
         <button
           onClick={() => {
-            setEditingResource(null)
-            setShowResourceForm(true)
+            setEditingResource(null);
+            setShow((prev) => ({ ...prev, resourceForm: true }));
           }}
           className="px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors"
         >
           Add Resource
         </button>
         <button
-          onClick={() => setShowFilterModal(true)}
+          onClick={() => setShow((prev) => ({ ...prev, filterModal: true }))}
           className="px-4 py-2 bg-secondary text-secondary-foreground rounded-md hover:bg-secondary/90 transition-colors"
         >
           Filter
@@ -165,67 +226,68 @@ const ResourceFeed = ({ searchTerm }: ResourceFeedProps) => {
 
       <div className="flex justify-between items-center mb-4">
         <h2 className="text-2xl font-semibold text-primary">Popular Resources</h2>
-        <div className="space-x-4">
-          <button
-            onClick={() => setShowMap(!showMap)}
-            className="bg-primary text-primary-foreground px-4 py-2 rounded-md hover:bg-primary/90 transition duration-300"
-          >
-            {showMap ? "Hide Map" : "Show Map"}
-          </button>
-        </div>
+        <button
+          onClick={() => setShow((prev) => ({ ...prev, map: !prev.map }))}
+          className="bg-primary text-primary-foreground px-4 py-2 rounded-md hover:bg-primary/90 transition duration-300"
+        >
+          {show.map ? "Hide Map" : "Show Map"}
+        </button>
       </div>
 
-      {showMap && (
+      {show.map && (
         <div className="mb-8 h-[400px] rounded-lg overflow-hidden shadow-lg">
           <DynamicResourceMap resources={filteredResources} />
         </div>
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {filteredResources.map((resource) => (
-          <ResourceCard
-            key={resource.id}
-            resource={resource}
-            onDelete={handleDelete}
-            onEdit={handleEdit}
-            onSelect={setSelectedResource}
-          />
-        ))}
-      </div>
+      {isLoading ? (
+        <div className="text-center py-4 text-gray-500">Loading resources...</div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {filteredResources.map((resource) => (
+            <ResourceCard
+              key={resource.id}
+              resource={resource}
+              onDelete={handleDelete}
+              onEdit={handleEdit}
+              onSelect={(resource) => setSelectedResource(resource)}
+            />
+          ))}
+        </div>
+      )}
 
       <ResourceDetailModal
         resource={selectedResource}
         onClose={() => setSelectedResource(null)}
-        onAddReview={() => setShowReviewModal(true)}
+        onAddReview={() => setShow((prev) => ({ ...prev, reviewModal: true }))}
+        currentUserId={session?.user?.id ?? ""}
+        onDeleteReview={handleDeleteReview}
       />
 
       <ReviewModal
-        isOpen={showReviewModal}
-        onClose={() => setShowReviewModal(false)}
+        isOpen={show.reviewModal}
+        onClose={() => setShow((prev) => ({ ...prev, reviewModal: false }))}
         onSubmit={handleAddReview}
-        resourceId={selectedResource?.id || ""}
+        resourceId={selectedResource?.id ?? ""}
       />
 
-      {showResourceForm && (
+      {show.resourceForm && (
         <ResourceForm
           resource={editingResource ?? undefined}
           onSubmit={handleResourceFormSubmit}
-          onClose={() => {
-            setShowResourceForm(false)
-            setEditingResource(null)
-          }}
+          onClose={() => setShow((prev) => ({ ...prev, resourceForm: false }))}
         />
       )}
 
       <FilterModal
-        isOpen={showFilterModal}
-        onClose={() => setShowFilterModal(false)}
+        isOpen={show.filterModal}
+        onClose={() => setShow((prev) => ({ ...prev, filterModal: false }))}
         filters={filters}
         setFilters={setFilters}
-        categories={Array.from(new Set(resources.map((r) => r.category).filter((c): c is string => c !== null)))}
+        categories={[...new Set(resources.map((r) => r.category).filter((c): c is string => c !== null))]}
       />
     </div>
-  )
-}
+  );
+};
 
-export default ResourceFeed
+export default ResourceFeed;

@@ -34,6 +34,12 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "No file uploaded" }, { status: 400 })
     }
 
+    // Validate file type (only images allowed)
+    const mimeType = file.type
+    if (!mimeType.startsWith("image/")) {
+      return NextResponse.json({ error: "Invalid file type. Only images are allowed." }, { status: 400 })
+    }
+
     // Define the directory where uploaded files will be stored
     const uploadDir = path.join(process.cwd(), "public/uploads")
     

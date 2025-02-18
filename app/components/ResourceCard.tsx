@@ -29,6 +29,7 @@ interface ResourceCardProps {
     onDelete: (id: string) => void;
     onEdit: (resource: Resource) => void;
     onSelect: (resource: ResourceWithDetails | null) => void;
+    onFavoriteChange: (resourceId: string, newFavoriteCount: number) => void;
 }
 
 /**
@@ -42,21 +43,49 @@ interface ResourceCardProps {
  * @param {function} onDelete - A function to handle the deletion of a resource.
  * @param {function} onEdit - A function to handle the editing of a resource.
  * @param {function} onSelect - A function to handle selecting a resource.
+ * @param {function} onFavoriteChange - A function to handle favorites.
  * 
  * @returns {JSX.Element} The ResourceCard component rendering a card with resource details.
  */
-export function ResourceCard({ resource, onDelete, onEdit, onSelect }: ResourceCardProps) {
+export function ResourceCard({ resource, onDelete, onEdit, onSelect, onFavoriteChange }: ResourceCardProps) {
     const { data: session } = useSession();
     const [isLiked, setIsLiked] = useState(false);
     const [isHovered, setIsHovered] = useState(false);
+    const [favoriteCount, setFavoriteCount] = useState(resource.favoriteCount || 0);
 
     // Determine if the current user is the owner of the resource
     const isOwner = session?.user?.id === resource.userId;
 
+    // Format numbers for favorite count
+    const formatNumber = (num : number) => {
+        if (num >= 1_000_000) return (num / 1_000_000).toFixed(1) + "M";
+        if (num >= 1_000) return (num / 1_000).toFixed(1) +"K";
+        return num.toString();
+    };
+
     // Handle the like button click
-    const handleLike = (e: React.MouseEvent) => {
+    const handleLike = async (e: React.MouseEvent) => {
         e.stopPropagation();
-        setIsLiked(!isLiked);
+        if (!resource) return;
+      
+        try {
+            const action = isLiked ? 'unfavorite' : 'favorite';
+            const response = await fetch(`/api/resources/favorite?id=${resource.id}&action=${action}`, {
+                method: "POST",
+            });
+            
+            if (response.ok) {
+                const newFavoriteCount = isLiked ? favoriteCount - 1 : favoriteCount + 1;
+                setIsLiked(!isLiked);
+                setFavoriteCount(newFavoriteCount);
+                onFavoriteChange(resource.id, newFavoriteCount);
+            } else {
+                const errorData = await response.json();
+                console.error("Failed to update favorite status:", errorData);
+            }
+        } catch (error) {
+            console.error("Error favoriting/unfavoriting resource:", error);
+        }
     };
 
     return (
@@ -80,11 +109,11 @@ export function ResourceCard({ resource, onDelete, onEdit, onSelect }: ResourceC
                             fill
                             className="object-cover"
                         />
-                        <div className="absolute inset-0 bg-gradient-to-r from-transparent to-background/90" />
+                        <div className="absolute inset-0 bg-gradient-to-r from-transparent to-background" />
                     </div>
                 ) : (
                     <div className="w-1/2 bg-muted flex items-center justify-center">
-                        <ImageIcon className="h-12 w-12 text-muted-foreground/50" />
+                        <ImageIcon className="h-12 w-12 text-muted-foreground/60" />
                     </div>
                 )}
                 
@@ -95,11 +124,14 @@ export function ResourceCard({ resource, onDelete, onEdit, onSelect }: ResourceC
                             whileHover={{ scale: 1.1 }}
                             whileTap={{ scale: 0.9 }}
                             onClick={handleLike}
-                            className="p-2 rounded-full hover:bg-secondary/10"
+                            className="flex items-center space-x-1 p-2 rounded-full hover:bg-secondary/10"
                         >
                             <Heart 
                                 className={`h-5 w-5 transition-colors ${isLiked ? 'fill-red-500 text-red-500' : 'text-gray-400'}`}
                             />
+                            <span className="text-sm text-muted-foreground">
+                                {formatNumber(favoriteCount)}
+                            </span>
                         </motion.button>
                     </div>
                     

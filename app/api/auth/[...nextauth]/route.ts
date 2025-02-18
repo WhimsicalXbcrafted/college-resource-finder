@@ -83,11 +83,16 @@ export const authOptions: NextAuthOptions = {
     },
     /** Passes user details to the session */
     async session({ session, token }) {
+      const userId = token.id as string;
+      const userRecord = await prisma.user.findUnique({
+        where: { id: userId },
+      });
+
       session.user = {
-        id: token.id as string,
+        id: userId,
         email: token.email as string,
         name: token.name as string,
-        image: token.image as string,
+        image: userRecord?.avatarUrl || '/uploads/default-avatar.png',
       };
       return session;
     },

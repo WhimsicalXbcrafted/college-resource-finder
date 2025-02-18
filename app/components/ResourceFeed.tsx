@@ -251,6 +251,13 @@ const ResourceFeed = ({ searchTerm }: ResourceFeedProps) => {
               onDelete={handleDelete}
               onEdit={handleEdit}
               onSelect={(resource) => setSelectedResource(resource)}
+              onFavoriteChange={(resourceId, newFavoriteCount) => {
+                setResources((prev) =>
+                  prev.map((r) =>
+                    r.id === resourceId ? { ...r, favoriteCount: newFavoriteCount } : r
+                  )
+                );
+              }}
             />
           ))}
         </div>

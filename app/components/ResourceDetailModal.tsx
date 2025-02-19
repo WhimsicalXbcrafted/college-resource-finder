@@ -33,14 +33,6 @@ type ResourceWithDetails = Resource & {
   }>;
 };
 
-/**
- * Props for the `ResourceDetailModal` component.
- * @param resource - The resource object to be displayed in the modal.
- * @param onClose - Callback function triggered when the modal is closed.
- * @param onAddReview - Optional callback to trigger when the user adds a review.
- * @param onDeleteReview - Optional callback to trigger when a review is deleted.
- * @param currentUserId - The ID of the current user, used to conditionally show delete options for reviews.
- */
 interface ResourceDetailModalProps {
   resource: ResourceWithDetails | null;
   onClose: () => void;
@@ -50,15 +42,9 @@ interface ResourceDetailModalProps {
 }
 
 /**
- * `ResourceDetailModal` component that displays a detailed view of a resource, including image, description, location, and reviews.
- * 
- * It supports adding and deleting reviews, and conditionally renders map and other details if available.
- *
- * @param resource - The resource to display in the modal.
- * @param onClose - The function to close the modal.
- * @param onAddReview - Optional function to handle adding a review.
- * @param onDeleteReview - Optional function to handle deleting a review.
- * @param currentUserId - The ID of the current user, used for identifying if the user can delete their own reviews.
+ * `ResourceDetailModal` component displays a detailed view of a resource, including image,
+ * description, location, and reviews. It re-fetches the resource after a review deletion so
+ * that the displayed overall rating and review list update correctly.
  */
 export function ResourceDetailModal({
   resource,
@@ -68,27 +54,68 @@ export function ResourceDetailModal({
   currentUserId,
 }: ResourceDetailModalProps) {
   const [reviews, setReviews] = useState(resource?.reviews || []);
+  const [updatedResource, setUpdatedResource] = useState(resource);
 
-  // Update reviews when resource changes
+  // Use the updated resource if available; otherwise fall back to the original resource.
+  const currentResource = updatedResource || resource;
+
+  // Calculate the average rating based on the current reviews.
+  const averageRating = reviews.length
+    ? (reviews.reduce((acc, review) => acc + review.rating, 0) / reviews.length).toFixed(1)
+    : "0";
+
+  // Whenever the resource prop changes, update the reviews.
   useEffect(() => {
     if (resource) {
       setReviews(resource.reviews);
+      setUpdatedResource(resource);
     }
   }, [resource]);
 
-  // Return null if no resource is provided
+  // Return null if no resource is provided.
   if (!resource) return null;
 
-  // Parse coordinates from JSON if present
+  // Parse coordinates from JSON if present.
   const coordinates = resource.coordinates ? JSON.parse(resource.coordinates as string) : null;
 
-  /**
-   * Handle deleting a review by filtering it out from the reviews list and calling the `onDeleteReview` callback.
-   * @param reviewId - The ID of the review to delete.
-   */
-  const handleDeleteReview = (reviewId: string) => {
-    setReviews(reviews.filter((review) => review.id !== reviewId));
-    onDeleteReview?.(reviewId);
+  // Function to re-fetch the resource data.
+  const fetchResource = async () => {
+    try {
+      const res = await fetch(`/api/resources?id=${resource?.id}`);
+      const data = await res.json();
+
+      console.log("Updated Resource:", data);
+
+      // If the API returns an array, select the resource that matches the ID.
+      let updatedRes = data;
+      if (Array.isArray(data)) {
+        updatedRes = data.find((r: ResourceWithDetails) => r.id === resource?.id);
+      }
+
+      setUpdatedResource(updatedRes);
+      setReviews(updatedRes?.reviews || []);
+    } catch (error) {
+      console.error("Failed to refresh resource:", error);
+    }
+  };
+
+  // Handle deleting a review.
+  const handleDeleteReview = async (reviewId: string) => {
+    try {
+      const res = await fetch(`/api/reviews/${reviewId}`, {
+        method: "DELETE",
+      });
+      
+      if (res.ok) {
+        // Re-fetch resource data after deletion to update reviews and overall rating.
+        fetchResource();
+        onDeleteReview?.(reviewId);
+      } else {
+        console.error("Failed to delete review");
+      }
+    } catch (error) {
+      console.error("Error deleting review:", error);
+    }
   };
 
   return (
@@ -117,10 +144,10 @@ export function ResourceDetailModal({
           <div className="flex flex-col md:flex-row h-full">
             <div className="w-full md:w-1/2 p-6">
               <div className="relative h-[300px] mb-6 rounded-lg overflow-hidden">
-                {resource.imageUrl ? (
+                {currentResource?.imageUrl ? (
                   <Image
-                    src={resource.imageUrl}
-                    alt={resource.name}
+                    src={currentResource.imageUrl}
+                    alt={currentResource.name}
                     fill
                     className="object-cover"
                   />
@@ -131,28 +158,32 @@ export function ResourceDetailModal({
                 )}
               </div>
 
-              <h2 className="text-3xl font-bold mb-4">{resource.name}</h2>
+              <h2 className="text-3xl font-bold mb-4">{currentResource?.name}</h2>
+              <div className="flex items-center mb-4">
+                <Star className="h-5 w-5 text-yellow-500" />
+                <span className="ml-2 text-lg">{averageRating}</span>
+              </div>
 
               <div className="flex items-center space-x-4 mb-6">
-                {resource.location && (
+                {currentResource?.location && (
                   <div className="flex items-center">
                     <MapPin className="h-5 w-5 mr-2" />
-                    <span>{resource.location}</span>
+                    <span>{currentResource.location}</span>
                   </div>
                 )}
-                {resource.hours && (
+                {currentResource?.hours && (
                   <div className="flex items-center">
                     <Clock className="h-5 w-5 mr-2" />
-                    <span>{resource.hours}</span>
+                    <span>{currentResource.hours}</span>
                   </div>
                 )}
               </div>
 
-              <p className="text-lg mb-6">{resource.description}</p>
+              <p className="text-lg mb-6">{currentResource?.description}</p>
 
-              {coordinates && (
+              {coordinates && currentResource && (
                 <div className="h-[300px] rounded-lg overflow-hidden mb-6">
-                  <Map resources={[resource]} />
+                  <Map resources={[currentResource]} />
                 </div>
               )}
             </div>

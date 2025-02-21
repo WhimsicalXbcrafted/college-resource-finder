@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 
 /**
  * POST: Update favorite count for a resource.
@@ -8,34 +10,66 @@ import { prisma } from "@/lib/prisma";
  */
 export async function POST(req: Request) {
     try {
+      const session = await getServerSession(authOptions);
+      if (!session?.user?.id) {
+        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      }
+
       const { searchParams } = new URL(req.url);
       const resourceId = searchParams.get("id");
       const action = searchParams.get("action");
-  
-      console.log("Resource ID:", resourceId);
-      console.log("Action:", action);
   
       if (!resourceId || !action) {
         return NextResponse.json({ error: "Resource ID and action are required" }, { status: 400 });
       }
   
-      let resource;
       if (action === 'favorite') {
-        resource = await prisma.resource.update({
+        // Check if the favorite record already exists
+        const existing = await prisma.resourceFavorite.findUnique({
+          where: {
+            userId_resourceId: {
+              resourceId: resourceId,
+              userId: session.user.id,
+            },
+          },
+        });
+
+        if (existing) {
+          return NextResponse.json({ message: "Already favorited" });
+        }
+
+        // Create a favorite record
+        await prisma.resourceFavorite.create({
+          data: {
+            resourceId,
+            userId: session.user.id,
+          },
+        });
+
+        // Increment the favoriteCount
+        const updatedResource = await prisma.resource.update({
           where: { id: resourceId },
           data: { favoriteCount: { increment: 1 } },
         });
+        return NextResponse.json(updatedResource);
       } else if (action === 'unfavorite') {
-        resource = await prisma.resource.update({
+        // Delete the favorite record
+        await prisma.resourceFavorite.deleteMany({
+          where: {
+            resourceId,
+            userId: session.user.id,
+          },
+        });
+
+        // Decrement the favoriteCount
+        const updatedResource = await prisma.resource.update({
           where: { id: resourceId },
           data: { favoriteCount: { decrement: 1 } },
         });
+        return NextResponse.json(updatedResource);
       } else {
         return NextResponse.json({ error: "Invalid action" }, { status: 400 });
       }
-  
-      console.log("Updated Resource:", resource);
-      return NextResponse.json(resource);
     } catch (error) {
       console.error("Error favoriting/unfavoriting resource:", error);
       return NextResponse.json({ error: "Failed to update favorite status" }, { status: 500 });

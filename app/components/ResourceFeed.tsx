@@ -268,7 +268,12 @@ const ResourceFeed = ({ searchTerm }: ResourceFeedProps) => {
         onClose={() => setSelectedResource(null)}
         onAddReview={() => setShow((prev) => ({ ...prev, reviewModal: true }))}
         currentUserId={session?.user?.id ?? ""}
-        onDeleteReview={handleDeleteReview}
+        onDeleteReview={(reviewId, updatedRes) => {
+          setSelectedResource(updatedRes);
+          setResources((prev) =>
+            prev.map((r) => (r.id === updatedRes.id ? updatedRes : r))
+          );
+        }}
       />
 
       <ReviewModal

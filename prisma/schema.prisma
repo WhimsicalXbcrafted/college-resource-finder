@@ -17,6 +17,7 @@ model User {
   pushNotifications  Boolean    @default(false)
   resources          Resource[]
   reviews           Review[]
+  favorites         ResourceFavorite[]
   createdAt         DateTime   @default(now())
   updatedAt         DateTime   @updatedAt
 }
@@ -37,6 +38,17 @@ model Resource {
   updatedAt     DateTime  @updatedAt
   user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   reviews       Review[]
+  favorites     ResourceFavorite[]
+}
+
+model ResourceFavorite {
+   id          String   @id @default(cuid())
+  userId      String
+  resourceId  String
+  createdAt   DateTime @default(now())
+  resource    Resource @relation(fields: [resourceId], references: [id], onDelete: Cascade)
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@unique([userId, resourceId])
 }
 
 model Review {

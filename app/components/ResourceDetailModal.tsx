@@ -37,7 +37,7 @@ interface ResourceDetailModalProps {
   resource: ResourceWithDetails | null;
   onClose: () => void;
   onAddReview?: () => void;
-  onDeleteReview?: (reviewId: string) => void;
+  onDeleteReview?: (reviewId: string, updatedResource: ResourceWithDetails) => void;
   currentUserId?: string;
 }
 
@@ -79,39 +79,36 @@ export function ResourceDetailModal({
   const coordinates = resource.coordinates ? JSON.parse(resource.coordinates as string) : null;
 
   // Function to re-fetch the resource data.
-  const fetchResource = async () => {
+  const fetchResource = async (): Promise<ResourceWithDetails | null> => {
     try {
-      const res = await fetch(`/api/resources?id=${resource?.id}`);
+      const res = await fetch(`/api/resources?id=${resource?.id}`, { cache: "no-store" });
       const data = await res.json();
-
-      console.log("Updated Resource:", data);
-
-      // If the API returns an array, select the resource that matches the ID.
       let updatedRes = data;
       if (Array.isArray(data)) {
         updatedRes = data.find((r: ResourceWithDetails) => r.id === resource?.id);
       }
-
       setUpdatedResource(updatedRes);
       setReviews(updatedRes?.reviews || []);
+      return updatedRes;
     } catch (error) {
       console.error("Failed to refresh resource:", error);
+      return null;
     }
   };
 
   // Handle deleting a review.
   const handleDeleteReview = async (reviewId: string) => {
     try {
-      const res = await fetch(`/api/reviews/${reviewId}`, {
-        method: "DELETE",
-      });
-      
-      if (res.ok) {
-        // Re-fetch resource data after deletion to update reviews and overall rating.
-        fetchResource();
-        onDeleteReview?.(reviewId);
+      const res = await fetch(`/api/reviews/${reviewId}`, { method: "DELETE" });
+      if (res.ok || res.status === 404) {
+        // Re-fetch updated resource.
+        const updatedRes = await fetchResource();
+        if (updatedRes) {
+          onDeleteReview?.(reviewId, updatedRes);
+        }
       } else {
-        console.error("Failed to delete review");
+        const errorData = await res.json();
+        console.error("Failed to delete review", errorData);
       }
     } catch (error) {
       console.error("Error deleting review:", error);

@@ -37,15 +37,24 @@ const handleImageUpload = async (image: Blob | null): Promise<string | null> => 
  */
 export async function GET() {
   try {
+    const session = await getServerSession(authOptions);
+
     const resources = await prisma.resource.findMany({
       include: {
         user: { select: { id: true, email: true, avatarUrl: true, name: true } },
         reviews: {
           include: { user: { select: { name: true, avatarUrl: true } } },
         },
+        favorites: true,
       },
     })
-    return NextResponse.json(resources)
+
+    const resourcesWithFavorites = resources.map((resource) => ({
+      ...resource,
+      isFavorited: session ? resource.favorites.some((fav) => fav.userId === session.user.id) : false,
+    }));
+
+    return NextResponse.json(resourcesWithFavorites);
   } catch (error) {
     console.error("Error fetching resources:", error)
     return NextResponse.json({ error: "Failed to fetch resources" }, { status: 500 })
@@ -151,7 +160,10 @@ export async function PUT(req: Request) {
       if (value !== null) updateData[field] = value
     })
 
-    updateData.imageUrl = await handleImageUpload(formData.get("image") as Blob)
+    const imageFile = formData.get("image") as Blob | null;
+    if (imageFile && imageFile.size > 0) {
+      updateData.imageUrl = await handleImageUpload(imageFile);
+    }
 
     const updatedResource = await prisma.resource.update({
       where: { id: resourceId },

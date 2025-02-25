@@ -4,7 +4,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "../../auth/[...nextauth]/route";
 
 /**
- * Interface for resource update payload
+ * Interface representing the payload for updating a resource.
  */
 interface ResourceUpdatePayload {
   name: string;
@@ -16,7 +16,7 @@ interface ResourceUpdatePayload {
 }
 
 /**
- * Interface for request parameters containing resource ID
+ * Interface representing request parameters containing the resource ID.
  */
 interface RequestParams {
   params: {
@@ -25,10 +25,14 @@ interface RequestParams {
 }
 
 /**
- * Updates an existing resource
- * @param req - HTTP request object containing the updated resource data
- * @param params - Request parameters containing the resource ID
- * @returns JSON response with the updated resource or an error message
+ * PUT /api/resources/[id]
+ *
+ * Updates an existing resource using the JSON payload provided in the request body.
+ * Only authenticated users (and the resource owner) can update the resource.
+ *
+ * @param req - The HTTP request object containing updated resource data in JSON format.
+ * @param params - Request parameters containing the resource ID.
+ * @returns A JSON response with the updated resource or an error message.
  */
 export async function PUT(req: Request, { params }: RequestParams) {
   try {
@@ -37,7 +41,10 @@ export async function PUT(req: Request, { params }: RequestParams) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    // Parse updated resource data from the request body.
     const updatedData: ResourceUpdatePayload = await req.json();
+
+    // Update the resource with the new data.
     const resource = await prisma.resource.update({
       where: { id: params.id },
       data: updatedData,
@@ -51,14 +58,17 @@ export async function PUT(req: Request, { params }: RequestParams) {
 }
 
 /**
- * Deletes a resource
- * @param req - HTTP request object
- * @param params - Request parameters containing the resource ID
- * @returns JSON response confirming deletion or an error message
+ * DELETE /api/resources/[id]
+ *
+ * Deletes a resource specified by the resource ID in the query parameters.
+ * Only authenticated users and the resource owner can delete the resource.
+ *
+ * @param req - The HTTP request object.
+ * @param params - Request parameters containing the resource ID.
+ * @returns A JSON response confirming deletion or an error message.
  */
 export async function DELETE(req: Request, { params }: RequestParams) {
   try {
-    // Ensure the user is authenticated
     const session = await getServerSession(authOptions);
     if (!session?.user?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -66,25 +76,34 @@ export async function DELETE(req: Request, { params }: RequestParams) {
 
     const { id } = params;
 
-    // Delete the resource by ID
+    // Delete the resource.
     await prisma.resource.delete({
       where: { id },
     });
 
-    // Return a success message after deletion
     return NextResponse.json({ message: "Resource deleted successfully" });
   } catch (error) {
-    // Log the error and return an appropriate response
     console.error("DELETE /api/resources/[id] error:", error);
     return NextResponse.json({ error: "Failed to delete resource" }, { status: 500 });
   }
 }
 
 /**
- * Adds a review to a resource
- * @param req - HTTP request object containing the review data
- * @param params - Request parameters containing the resource ID
- * @returns JSON response with the new review or an error message
+ * POST /api/resources/[id]
+ *
+ * Adds a review to the resource specified by the resource ID in the parameters.
+ * After creating the review, it recalculates and updates the resource's average rating.
+ * Only authenticated users can add reviews.
+ *
+ * The expected JSON payload should include:
+ * {
+ *   "rating": number,
+ *   "comment": string | null
+ * }
+ *
+ * @param req - The HTTP request containing the review data in JSON format.
+ * @param params - Request parameters containing the resource ID.
+ * @returns A JSON response with the newly created review or an error message.
  */
 export async function POST(req: Request, { params }: RequestParams) {
   try {
@@ -93,9 +112,10 @@ export async function POST(req: Request, { params }: RequestParams) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    // Parse review data from the request body.
     const { rating, comment } = await req.json();
     
-    // Create new review
+    // Create a new review.
     const newReview = await prisma.review.create({
       data: {
         resourceId: params.id,
@@ -117,7 +137,7 @@ export async function POST(req: Request, { params }: RequestParams) {
       },
     });
 
-    // Calculate the new average rating
+    // Retrieve all reviews for the resource to recalculate the average rating.
     const reviews = await prisma.review.findMany({
       where: { resourceId: params.id },
       select: { rating: true },
@@ -126,7 +146,7 @@ export async function POST(req: Request, { params }: RequestParams) {
     const averageRating =
       reviews.reduce((sum, review) => sum + review.rating, 0) / reviews.length;
 
-    // Update the resource with the new average rating
+    // Update the resource with the new average rating.
     await prisma.resource.update({
       where: { id: params.id },
       data: { averageRating },

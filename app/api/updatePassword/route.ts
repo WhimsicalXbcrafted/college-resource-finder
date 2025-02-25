@@ -5,16 +5,26 @@ import { authOptions } from '../auth/[...nextauth]/route';
 import bcrypt from 'bcryptjs'; 
 
 /**
- * POST request handler to update a user's password.
+ * POST /api/user/update-password
  * 
- * This function performs the following actions:
- * 1. Validates the user's session to ensure they are logged in.
- * 2. Verifies that the current password provided matches the stored password.
- * 3. Hashes the new password before storing it securely.
- * 4. Updates the user's password in the database.
+ * Updates the authenticated user's password.
  * 
- * @param {Request} req - The HTTP request containing the user's current and new password.
- * @returns {NextResponse} - A JSON response indicating the outcome of the password update.
+ * Behavior:
+ * - Verifies the user's session to ensure they are authenticated.
+ * - Validates that the provided current password matches the stored password.
+ * - Hashes the new password for secure storage.
+ * - Updates the user's password in the database.
+ * - Returns a success or error response based on the outcome of the operation.
+ * 
+ * Authentication:
+ * - The user must be authenticated. Otherwise, a 401 Unauthorized response is returned.
+ * 
+ * Input Validation:
+ * - `currentPassword`: Must match the user's current password.
+ * - `newPassword`: Must be a non-empty string.
+ * 
+ * @param {Request} req - The incoming HTTP request containing the current and new password in JSON format.
+ * @returns {Promise<NextResponse>} A JSON response indicating the outcome of the password update process.
  */
 export async function POST(req: Request) {
   try {
@@ -22,12 +32,8 @@ export async function POST(req: Request) {
     const session = await getServerSession(authOptions);
 
     // Check if the user is authenticated
-    if (!session?.user?.id) {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      );
-    }
+    if (!session?.user?.id) {return NextResponse.json({ error: 'Unauthorized' },{ status: 401 });
+    };
 
     // Parse the request body to get the current and new password
     const { currentPassword, newPassword } = await req.json();
@@ -39,22 +45,16 @@ export async function POST(req: Request) {
 
     // If the user doesn't exist, return a 404 response
     if (!user) {
-      return NextResponse.json(
-        { error: 'User not found' },
-        { status: 404 }
-      );
-    }
+      return NextResponse.json({ error: 'User not found' },{ status: 404 });
+    };
 
     // Compare the current password with the stored password
     const isPasswordValid = await bcrypt.compare(currentPassword, user.password!);
 
     // If the current password is incorrect, return a 401 response
     if (!isPasswordValid) {
-      return NextResponse.json(
-        { error: 'Current password is incorrect' },
-        { status: 401 }
-      );
-    }
+      return NextResponse.json({ error: 'Current password is incorrect' },{ status: 401 });
+    };
 
     // Hash the new password before saving it in the database
     const hashedPassword = await bcrypt.hash(newPassword, 10);
@@ -66,17 +66,11 @@ export async function POST(req: Request) {
     });
 
     // Return a success response after the password is updated
-    return NextResponse.json(
-      { message: 'Password updated successfully' },
-      { status: 200 }
-    );
+    return NextResponse.json({ message: 'Password updated successfully' },{ status: 200 });
   } catch (error) {
     // Log the error for debugging and return a failure response
     console.error('Password update error:', error);
 
-    return NextResponse.json(
-      { error: 'Failed to update password' },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: 'Failed to update password' },{ status: 500 });
   }
 }

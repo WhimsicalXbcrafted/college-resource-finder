@@ -4,13 +4,25 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '../auth/[...nextauth]/route'
 
 /**
- * PUT request handler to update a user's profile data.
+ * PUT /api/user/profile
  * 
- * This function verifies that the user is authenticated, validates the input data, and updates 
- * the user's profile in the database. It returns an appropriate response based on success or failure.
+ * Updates a user's profile data.
  * 
- * @param {Request} req - The incoming HTTP request, containing the new user data.
- * @returns {NextResponse} - JSON response indicating the success or failure of the operation.
+ * Behavior:
+ * - Verifies the user's session to ensure they are authenticated.
+ * - Validates the input data (name, emailNotifications, pushNotifications).
+ * - Updates the user's profile in the database with the provided data.
+ * - Returns the updated user data in the response.
+ * 
+ * Authentication:
+ * - The user must be authenticated. Otherwise, a 401 Unauthorized response is returned.
+ * 
+ * Input Validation:
+ * - `name`: Must be a non-empty string.
+ * - `emailNotifications` and `pushNotifications`: Must be boolean values.
+ * 
+ * @param {Request} req - The incoming HTTP request containing the updated profile data in JSON format.
+ * @returns {Promise<NextResponse>} A JSON response indicating success or failure, including the updated user data if successful.
  */
 export async function PUT(req: Request): Promise<NextResponse> {
   try {

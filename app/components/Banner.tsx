@@ -4,12 +4,12 @@ import { motion } from "framer-motion";
 
 /**
  * Banner Component
- *
- * Displays a welcome message that animates in/out based on the `show` prop.
- *
+ * 
+ * Displays a welcome message with an animated entrance/exit based on the `show` prop.
+ * 
  * @param {Object} props - Component props.
  * @param {boolean} props.show - Controls the visibility and animation of the banner.
- * @returns {JSX.Element} The Banner component.
+ * @returns {JSX.Element} The animated banner component.
  */
 const Banner = ({ show }: { show: boolean }) => {
   return (

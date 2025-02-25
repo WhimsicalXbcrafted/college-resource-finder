@@ -4,13 +4,19 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "../../auth/[...nextauth]/route";
 
 /**
- * DELETE: Delete a review by its ID.
+ * DELETE /api/reviews/[id]
  * 
- * This endpoint deletes a review from the database. It ensures that the request is
- * made by an authenticated user, verifies that the review exists, and confirms that
- * the review belongs to the user before deletion.
- *
- * @param req - The incoming HTTP request.
+ * Deletes a review by its ID.
+ * 
+ * Behavior:
+ * - Validates the user's session to ensure they are authenticated.
+ * - Checks if the review exists and if the authenticated user is the owner.
+ * - Deletes the review if all checks pass.
+ * 
+ * Authentication:
+ * - The user must be authenticated and the owner of the review. Otherwise, a 401 Unauthorized response is returned.
+ * 
+ * @param {Request} req - The incoming HTTP request.
  * @param {Object} context - The context object containing route parameters.
  * @param {Object} context.params - The request parameters.
  * @param {string} context.params.id - The ID of the review to delete.

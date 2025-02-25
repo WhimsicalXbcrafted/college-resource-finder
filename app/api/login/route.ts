@@ -3,40 +3,64 @@ import { prisma } from '@/lib/prisma';
 import bcrypt from 'bcryptjs';
 
 /**
- * Handles user authentication via email and password.
+ * POST /api/auth/login
  *
- * @param {Request} req - The HTTP request object containing JSON credentials.
- * @returns {Promise<NextResponse>} A JSON response indicating success or failure.
+ * Authenticates a user using email and password.
+ *
+ * The request must have a JSON body with the following shape:
+ * {
+ *   "email": "user@example.com",
+ *   "password": "plainTextPassword"
+ * }
+ *
+ * Steps:
+ * 1. Parses the JSON body to extract email and password.
+ * 2. Validates that both fields are provided.
+ * 3. Retrieves the user from the database by email, selecting only the id and hashed password.
+ * 4. If the user is not found or the password is missing, returns an error.
+ * 5. Compares the provided password with the hashed password using bcrypt.
+ * 6. Returns a success message if the password is valid; otherwise, returns an error.
+ *
+ * @param req - The HTTP request containing JSON credentials.
+ * @returns A JSON response indicating success or an appropriate error.
  */
 export async function POST(req: Request): Promise<NextResponse> {
   try {
-    // Parse JSON body from the request
+    // Parse the JSON body from the request to extract email and password
     const { email, password } = await req.json();
-    
+
+    // Validate that both email and password are provided
     if (!email || !password) {
-      return NextResponse.json({ error: 'Email and password are required' }, { status: 400 });
+      return NextResponse.json({ error: 'Email and password are required' },{ status: 400 });
     }
 
-    // Retrieve the user from the database
+    // Retrieve the user from the database by email, selecting only necessary fields
     const user = await prisma.user.findUnique({
       where: { email },
-      select: { id: true, password: true }, // Only fetch necessary fields
+      select: { id: true, password: true },
     });
 
+    // If no user is found or the password is missing, return an error
     if (!user || !user.password) {
-      return NextResponse.json({ error: 'Invalid email or password '}, {status: 400})
+      return NextResponse.json(
+        { error: 'Invalid email or password' },
+        { status: 400 }
+      );
     }
 
-    // Compare the provided password with the hashed password in the database
+    // Compare the provided password with the hashed password stored in the database
     const isPasswordValid = await bcrypt.compare(password, user.password);
     if (!isPasswordValid) {
-      return NextResponse.json({ error: 'Invalid password' }, {status: 400})
+      return NextResponse.json({ error: 'Invalid password' },{ status: 400 });
     }
 
-    // Respond with a success message
+    // If authentication is successful, return a success message
     return NextResponse.json({ message: 'Login successful' });
   } catch (error) {
     console.error('Login error:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    return NextResponse.json(
+      { error: 'Internal server error' },
+      { status: 500 }
+    );
   }
 }

@@ -4,7 +4,8 @@ import { prisma } from '@/lib/prisma';
 import bcrypt from 'bcryptjs';
 
 /**
- * Extending NextAuth types for user, session, and JWT.
+ * Extend NextAuth types for User, Session, and JWT.
+ * This ensures that the extra properties we include (id, name, image) are recognized.
  */
 declare module 'next-auth' {
   interface User {
@@ -32,9 +33,12 @@ declare module 'next-auth' {
 
 /**
  * NextAuth configuration for authentication using credentials (email & password).
+ * 
+ * This configuration uses the CredentialsProvider and validates user credentials
+ * against a Prisma database. Passwords are compared using bcrypt.
  */
 export const authOptions: NextAuthOptions = {
-  secret: process.env.NEXTAUTH_SECRET, // Use environment variable for security
+  secret: process.env.NEXTAUTH_SECRET, // Secure secret from environment variable
   providers: [
     CredentialsProvider({
       name: 'Credentials',
@@ -42,6 +46,11 @@ export const authOptions: NextAuthOptions = {
         email: { label: 'Email', type: 'text' },
         password: { label: 'Password', type: 'password' },
       },
+      /**
+       * authorize - Verifies user credentials.
+       * @param credentials - The email and password provided by the user.
+       * @returns A user object on success, or null on failure.
+       */
       async authorize(credentials) {
         if (!credentials?.email || !credentials?.password) return null;
 
@@ -50,10 +59,13 @@ export const authOptions: NextAuthOptions = {
             where: { email: credentials.email },
           });
 
+          // If user doesn't exist or no password stored, return null
           if (!user || !user.password) return null;
           
+          // Compare provided password with the stored hashed password
           const isValid = await bcrypt.compare(credentials.password, user.password);
           
+          // Return user object if valid, otherwise return null
           return isValid ? {
             id: user.id.toString(),
             email: user.email,
@@ -68,10 +80,17 @@ export const authOptions: NextAuthOptions = {
     }),
   ],
   session: {
-    strategy: 'jwt', // Use JWT-based session handling
+    strategy: 'jwt', // Use JSON Web Tokens for session management
   },
   callbacks: {
-    /** Stores user information in JWT token */
+    /**
+     * jwt callback: Called when a token is created or updated.
+     * It stores the user information into the JWT token.
+     *
+     * @param token - The existing token.
+     * @param user - The user object returned from authorize (if available).
+     * @returns The updated token.
+     */
     async jwt({ token, user }) {
       if (user) {
         token.id = user.id;
@@ -81,7 +100,14 @@ export const authOptions: NextAuthOptions = {
       }
       return token;
     },
-    /** Passes user details to the session */
+    /**
+     * session callback: Called whenever a session is checked.
+     * It passes the user details (including avatarUrl) to the session.
+     *
+     * @param session - The current session.
+     * @param token - The token containing user details.
+     * @returns The updated session with user details.
+     */
     async session({ session, token }) {
       const userId = token.id as string;
       const userRecord = await prisma.user.findUnique({
@@ -102,5 +128,6 @@ export const authOptions: NextAuthOptions = {
   },
 };
 
+// Initialize NextAuth with the defined options and export it for GET and POST requests.
 const handler = NextAuth(authOptions);
 export { handler as GET, handler as POST };

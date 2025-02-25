@@ -3,35 +3,41 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { UserCircle, Settings, LogOut } from "lucide-react";
+import { UserCircle, Settings, LogOut, Heart } from "lucide-react";
 import { useSession, signOut } from "next-auth/react";
 
 /**
  * Header Component
  *
- * A navigation header that displays a link to the homepage and a user dropdown
- * with options to view settings and log out if the user is authenticated.
- * 
- * @returns {JSX.Element} The Header component with user authentication and settings options.
+ * A navigation header with a link to the homepage and a user dropdown for settings and logout.
+ *
+ * @returns {JSX.Element} The Header component.
  */
 const Header = () => {
   const { data: session } = useSession(); // Fetch the user session
-  const [showDropdown, setShowDropdown] = useState(false); // State to toggle the dropdown visibility
+  const [showDropdown, setShowDropdown] = useState(false); // Toggle dropdown visibility
   const router = useRouter(); // Router for navigation
 
   /**
-   * Logs the user out by calling the `signOut` function and redirecting to the homepage.
+   * Logs the user out and redirects to the homepage.
    */
   const handleLogout = async () => {
-    await signOut({ redirect: false }); // Perform sign out without redirecting
-    router.push('/'); // Redirect to the homepage
+    await signOut({ redirect: false });
+    router.push('/');
   };
 
   /**
-   * Navigates the user to the settings page.
+   * Navigates to the settings page.
    */
   const handleSettings = () => {
-    router.push('/settings'); // Navigate to the settings page
+    router.push('/settings');
+  };
+
+  /**
+   * Navigates to the favorites page.
+   */
+  const handleFavorites = () => {
+    router.push('/favorites');
   };
 
   return (
@@ -44,23 +50,30 @@ const Header = () => {
           {session ? (
             <div>
               <button
-                onClick={() => setShowDropdown(!showDropdown)} // Toggle the dropdown visibility
+                onClick={() => setShowDropdown(!showDropdown)}
                 className="flex items-center space-x-2 bg-muted text-foreground px-4 py-2 rounded-md transition duration-300 hover:bg-accent hover:text-accent-foreground"
               >
                 <UserCircle className="h-5 w-5" />
-                <span>{session.user?.email}</span> {/* Display user's email */}
+                <span>{session.user?.email}</span>
               </button>
               {showDropdown && (
                 <div className="absolute right-0 mt-2 w-48 bg-card rounded-md shadow-lg py-1 z-10 glassmorphism">
                   <button
-                    onClick={handleSettings} // Navigate to settings page
+                    onClick={handleSettings}
                     className="flex items-center w-full text-left px-4 py-2 text-sm text-foreground hover:bg-accent hover:text-accent-foreground"
                   >
                     <Settings className="h-4 w-4 mr-2" />
                     Settings
                   </button>
                   <button
-                    onClick={handleLogout} // Log the user out
+                    onClick={handleFavorites}
+                    className="flex items-center w-full text-left px-4 py-2 text-sm text-foreground hover:bg-accent hover:text-accent-foreground"
+                  >
+                    <Heart className="h-4 w-4 mr-2" />
+                    Favorites
+                  </button>
+                  <button
+                    onClick={handleLogout}
                     className="flex items-center w-full text-left px-4 py-2 text-sm text-foreground hover:bg-accent hover:text-accent-foreground"
                   >
                     <LogOut className="h-4 w-4 mr-2" />
@@ -69,7 +82,7 @@ const Header = () => {
                 </div>
               )}
             </div>
-          ) : null} {/* Only display if user is logged in */}
+          ) : null}
         </div>
       </div>
     </header>

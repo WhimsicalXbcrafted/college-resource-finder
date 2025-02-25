@@ -4,16 +4,23 @@ import { isUWEmail } from '@/app/utils/emailValidator';
 import bcrypt from 'bcryptjs'; 
 
 /**
- * POST request handler to create a new user.
+ * POST /api/user
  * 
- * This function performs the following actions:
- * 1. Validates that the provided email belongs to a UW domain (@uw.edu).
- * 2. Checks if the user already exists in the database.
- * 3. Hashes the provided password for secure storage.
- * 4. Creates a new user in the database with the provided email and hashed password.
+ * Creates a new user in the database.
  * 
- * @param {Request} req - The HTTP request containing the user's email and password.
- * @returns {NextResponse} - A JSON response indicating the outcome of the user creation.
+ * Behavior:
+ * - Validates that the provided email belongs to a UW domain (@uw.edu).
+ * - Checks if a user with the provided email already exists in the database.
+ * - Hashes the provided password for secure storage.
+ * - Creates a new user in the database with the provided email and hashed password.
+ * - Returns a success or error response based on the outcome of the operation.
+ * 
+ * Input Validation:
+ * - `email`: Must be a valid UW email address (ending with @uw.edu).
+ * - `password`: Must be a non-empty string.
+ * 
+ * @param {Request} req - The incoming HTTP request containing the user's email and password in JSON format.
+ * @returns {Promise<NextResponse>} A JSON response indicating the outcome of the user creation process.
  */
 export async function POST(req: Request) {
   try {
@@ -22,11 +29,8 @@ export async function POST(req: Request) {
 
     // Check if the email is a valid UW email address
     if (!isUWEmail(email)) {
-      return NextResponse.json(
-        { error: 'Please use a UW email address (@uw.edu)' },
-        { status: 400 }
-      );
-    }
+      return NextResponse.json({ error: 'Please use a UW email address (@uw.edu)' },{ status: 400 });
+    };
 
     // Check if a user already exists with the given email
     const existingUser = await prisma.user.findUnique({
@@ -35,11 +39,8 @@ export async function POST(req: Request) {
 
     // If the user already exists, return an error response
     if (existingUser) {
-      return NextResponse.json(
-        { error: 'User already exists' },
-        { status: 400 }
-      );
-    }
+      return NextResponse.json({ error: 'User already exists' },{ status: 400 });
+    };
 
     // Hash the password before storing it in the database
     const hashedPassword = await bcrypt.hash(password, 10);
@@ -53,17 +54,11 @@ export async function POST(req: Request) {
     });
 
     // Return a success response indicating user creation
-    return NextResponse.json(
-      { message: 'User created successfully' },
-      { status: 201 }
-    );
+    return NextResponse.json({ message: 'User created successfully' },{ status: 201 });
   } catch (error) {
     // Log the error for debugging and return a failure response
     console.error('User creation error:', error);
 
-    return NextResponse.json(
-      { error: 'Failed to create user' },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: 'Failed to create user' },{ status: 500 });
   }
 }

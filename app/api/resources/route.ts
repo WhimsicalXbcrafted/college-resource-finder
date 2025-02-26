@@ -1,13 +1,28 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import type { Resource } from "@prisma/client";
 import { getServerSession } from "next-auth";
 import { authOptions } from "../auth/[...nextauth]/option";
 import { writeFile, mkdir } from "fs/promises";
 import path from "path";
 
+interface ResourceFromDB {
+  id: string;
+  userId: string;
+  name: string;
+  description: string | null;
+  location: string | null;
+  hours: string | null;
+  category: string | null;
+  coordinates: unknown;
+  imageUrl: string | null;
+  averageRating: number;
+  favoriteCount: number;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
 // Define an interface for resources that include a favorites array.
-interface ResourceWithFavorites extends Resource {
+interface ResourceWithFavorites extends ResourceFromDB {
   favorites: { userId: string }[];
 }
 /**

@@ -7,6 +7,15 @@ import { authOptions } from "../../auth/[...nextauth]/option";
 // Initialize Prisma client
 const prisma = new PrismaClient();
 
+// Custom type for the user update data.
+interface UserUpdateData {
+  name?: string;
+  email?: string;
+  emailNotifications?: boolean;
+  pushNotifications?: boolean;
+  password?: string;
+}
+
 /**
  * PUT /api/user/settings
  * 
@@ -62,9 +71,8 @@ export async function PUT(req: Request): Promise<NextResponse> {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
-    // Prepare data for the update operation using a typed object.
-    // Use Prisma.UserUpdateArgs["data"] instead of Prisma.UserUpdateInput
-    const updateData: Prisma.UserUpdateArgs["data"] = {};
+    // Prepare data for the update operation using our custom type.
+    const updateData: UserUpdateData = {};
 
     // Conditionally update fields based on the incoming data to avoid unnecessary updates.
     if (name && name !== user.name) updateData.name = name;

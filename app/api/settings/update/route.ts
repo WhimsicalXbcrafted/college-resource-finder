@@ -63,7 +63,8 @@ export async function PUT(req: Request): Promise<NextResponse> {
     }
 
     // Prepare data for the update operation using a typed object.
-    const updateData: Prisma.UserUpdateInput = {};
+    // Use Prisma.UserUpdateArgs["data"] instead of Prisma.UserUpdateInput
+    const updateData: Prisma.UserUpdateArgs["data"] = {};
 
     // Conditionally update fields based on the incoming data to avoid unnecessary updates.
     if (name && name !== user.name) updateData.name = name;

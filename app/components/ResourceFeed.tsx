@@ -10,7 +10,6 @@ import { ResourceCard } from "./ResourceCard";
 import { ResourceDetailModal } from "./ResourceDetailModal";
 import type { Resource, Review } from "@prisma/client";
 
-
 // Dynamically imported component to show the resource map (SSR disabled).
 const DynamicResourceMap = dynamic(() => import("./ResourceMap"), {
   ssr: false,
@@ -21,6 +20,7 @@ const DynamicResourceMap = dynamic(() => import("./ResourceMap"), {
  * Defines the structure of a Resource with its associated details like reviews and user info.
  */
 export type ResourceWithDetails = Resource & {
+  coordinates: string | null;
   user?: {
     id: string;
     email: string;
@@ -37,6 +37,8 @@ export type ResourceWithDetails = Resource & {
       avatarUrl: string | null;
     };
   }>;
+  averageRating?: number;
+  favoriteCount?: number;
 };
 
 /**
@@ -147,29 +149,6 @@ const ResourceFeed = ({ searchTerm }: ResourceFeedProps) => {
   };
 
   /**
-   * Handles the deletion of a review from a resource.
-   * 
-   * @param reviewId - The ID of the review to delete.
-   */
-  const handleDeleteReview = async (reviewId: string) => {
-    try {
-      const response = await fetch(`/api/reviews/${reviewId}`, { method: "DELETE" });
-      if (!response.ok) throw new Error("Failed to delete review");
-
-      setSelectedResource((prev) =>
-        prev ? { ...prev, reviews: prev.reviews.filter((r) => r.id !== reviewId) } : null
-      );
-      setResources((prev) =>
-        prev.map((r) =>
-          r.id === selectedResource?.id ? { ...r, reviews: r.reviews.filter((r) => r.id !== reviewId) } : r
-        )
-      );
-    } catch (error) {
-      console.error("Failed to delete review:", error);
-    }
-  };
-
-  /**
    * Handles editing an existing resource by setting it to the editing state.
    * 
    * @param resource - The resource to edit.
@@ -236,7 +215,14 @@ const ResourceFeed = ({ searchTerm }: ResourceFeedProps) => {
 
       {show.map && (
         <div className="mb-8 h-[400px] rounded-lg overflow-hidden shadow-lg">
-          <DynamicResourceMap resources={filteredResources} />
+          <DynamicResourceMap resources={filteredResources.map(({ id, name, description, category, coordinates, ...rest }) => ({
+            id,
+            name,
+            description,
+            category,
+            coordinates: coordinates as string | null,
+            ...rest
+          }))} />
         </div>
       )}
 
@@ -248,9 +234,9 @@ const ResourceFeed = ({ searchTerm }: ResourceFeedProps) => {
             <ResourceCard
               key={resource.id}
               resource={resource}
-              onDelete={handleDelete}
+              onSelect={(resource) => setSelectedResource(resource as ResourceWithDetails)}
               onEdit={handleEdit}
-              onSelect={(resource) => setSelectedResource(resource)}
+              onDelete={handleDelete}
               onFavoriteChange={(resourceId, newFavoriteCount) => {
                 setResources((prev) =>
                   prev.map((r) =>

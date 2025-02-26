@@ -127,7 +127,7 @@ const FavoritesPage = () => {
           </div>
         ) : (
           <div className="text-center text-gray-600 dark:text-gray-400">
-            You haven't favorited any resources yet.
+            You haven&apos;t favorited any resources yet.
           </div>
         )}
       </main>

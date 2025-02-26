@@ -1,54 +1,45 @@
-"use client"
+"use client" 
 
 import { useState, useRef } from "react"
-import { useSession } from "next-auth/react"
-import { motion } from "framer-motion"
-import { Camera, Bell, Lock, ArrowLeft } from "lucide-react"
-import { useRouter } from "next/navigation"
+import { useSession } from "next-auth/react" 
+import { motion } from "framer-motion" 
+import { Camera, Bell, Lock, ArrowLeft } from "lucide-react" 
+import { useRouter } from "next/navigation" 
+import Image from "next/image" 
+import defaultAvatar from "../../public/uploads/default.png" 
 
-/**
- * Allows users to update their profile settings.
- * Users can change their name, email, password, and notification preferences.
- * It also allows uploading a new profile picture.
- * 
- * @returns {JSX.Element} The settings page layout with forms for updating user information.
- */
-export default function SettingsPage() {
-  // Use the session data from NextAuth to get the current user session
+const SettingsPage = () => {
+  // Access user session data and update function
   const { data: session, update } = useSession()
-  const router = useRouter()
+  const router = useRouter() // Router for navigation
 
-  // State hooks to store form values
-  const [name, setName] = useState(session?.user?.name || "")
-  const [email, setEmail] = useState(session?.user?.email || "")
-  const [currentPassword, setCurrentPassword] = useState("")
-  const [newPassword, setNewPassword] = useState("")
-  const [confirmPassword, setConfirmPassword] = useState("")
-  const [emailNotifications, setEmailNotifications] = useState(true)
-  const [pushNotifications, setPushNotifications] = useState(true)
-  const [error, setError] = useState("")
-  const [success, setSuccess] = useState("")
-  const [isLoading, setIsLoading] = useState(false)
+  // State for form inputs and UI feedback
+  const [name, setName] = useState(session?.user?.name || "") // User's name
+  const [email, setEmail] = useState(session?.user?.email || "") // User's email
+  const [currentPassword, setCurrentPassword] = useState("") // Current password input
+  const [newPassword, setNewPassword] = useState("") // New password input
+  const [confirmPassword, setConfirmPassword] = useState("") // Confirm new password input
+  const [emailNotifications, setEmailNotifications] = useState(true) // Email notifications toggle
+  const [pushNotifications, setPushNotifications] = useState(true) // Push notifications toggle
+  const [error, setError] = useState("") // Error message
+  const [success, setSuccess] = useState("") // Success message
+  const [isLoading, setIsLoading] = useState(false) // Loading state
 
-  // Ref for file input element to handle profile picture upload
+  // Ref for file input to trigger image upload
   const fileInputRef = useRef<HTMLInputElement>(null)
 
-  // Class name for input fields
-  const inputClassName = "w-full p-3 border rounded-md focus:ring-2 focus:ring-primary text-foreground bg-background"
+  // CSS class for input fields
+  const inputClassName =
+    "w-full p-3 border rounded-md focus:ring-2 focus:ring-primary text-foreground bg-background"
 
-  /**
-   * Handles form submission to update the user's settings.
-   * Validates passwords if changing, and sends a PUT request to update the settings.
-   * 
-   * @param {React.FormEvent} e The form submission event
-   */
+  // Handle form submission for updating settings
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setIsLoading(true)
-    setError("")
-    setSuccess("")
+    e.preventDefault() // Prevent default form behavior
+    setIsLoading(true) // Set loading state
+    setError("") // Clear previous errors
+    setSuccess("") // Clear previous success messages
 
-    // Validate passwords if changing
+    // Validate password inputs
     if (newPassword && !currentPassword) {
       setError("Please enter your current password")
       setIsLoading(false)
@@ -62,17 +53,17 @@ export default function SettingsPage() {
     }
 
     try {
-      // Send a PUT request to update the user's settings
-      const response = await fetch('/api/settings/update', {
-        method: 'PUT',
+      // Send PUT request to update settings
+      const response = await fetch("/api/settings/update", {
+        method: "PUT",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
         body: JSON.stringify({
           name,
           email,
-          currentPassword: currentPassword || undefined,
-          newPassword: newPassword || undefined,
+          currentPassword: currentPassword || undefined, // Only send if provided
+          newPassword: newPassword || undefined, // Only send if provided
           emailNotifications,
           pushNotifications,
         }),
@@ -80,11 +71,12 @@ export default function SettingsPage() {
 
       const data = await response.json()
 
+      // Handle errors from the API
       if (!response.ok) {
-        throw new Error(data.error || 'Failed to update settings')
+        throw new Error(data.error || "Failed to update settings")
       }
 
-      // Update session with new user data if the update was successful
+      // Update session if user data is returned
       if (data.user) {
         await update({
           ...session,
@@ -92,88 +84,96 @@ export default function SettingsPage() {
             ...session?.user,
             name: data.user.name,
             email: data.user.email,
-          }
+          },
         })
       }
 
+      // Show success message and reset password fields
       setSuccess(data.message || "Settings updated successfully!")
       setCurrentPassword("")
       setNewPassword("")
       setConfirmPassword("")
-    } catch (err: any) {
-      setError(err.message || "Failed to update settings. Please try again.")
-      console.error("Settings update error:", err)
+    } catch (error: unknown) {
+      // Handle errors and display appropriate message
+      if (error instanceof Error) {
+        setError(error.message || "Failed to update settings. Please try again.")
+      } else {
+        setError("Failed to update settings. Please try again.")
+      }
+      console.error("Settings update error:", error)
     } finally {
-      setIsLoading(false)
+      setIsLoading(false) // Reset loading state
     }
   }
 
-  /**
-   * Handles image upload when the user selects a new profile picture.
-   * Sends the selected image to the backend API for processing.
-   * 
-   * @param {React.ChangeEvent<HTMLInputElement>} e The change event for the file input
-   */
+  // Handle profile picture upload
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
+    const file = e.target.files?.[0] // Get the selected file
     if (!file) return
 
-    const formData = new FormData()
-    formData.append('image', file)
+    const formData = new FormData() // Create FormData object
+    formData.append("image", file) // Append the file to FormData
 
     try {
-      setIsLoading(true)
-      setError("")
-      const response = await fetch('/api/settings/upload-image', {
-        method: 'POST',
+      setIsLoading(true) // Set loading state
+      setError("") // Clear previous errors
+
+      // Send POST request to upload image
+      const response = await fetch("/api/settings/upload-image", {
+        method: "POST",
         body: formData,
       })
 
       const data = await response.json()
 
+      // Handle errors from the API
       if (!response.ok) {
-        throw new Error(data.error || 'Failed to upload image')
+        throw new Error(data.error || "Failed to upload image")
       }
 
-      // Update the user's session with the new profile image
+      // Update session with new image URL
       await update({ ...session, user: { ...session?.user, image: data.imageUrl } })
-      console.log(data.imageUrl);
-      setSuccess("Profile picture updated successfully!")
-    } catch (err: any) {
-      setError(err.message || "Failed to upload image. Please try again.")
-      console.error("Upload error:", err)
+      setSuccess("Profile picture updated successfully!") // Show success message
+    } catch (error: unknown) {
+      // Handle errors and display appropriate message
+      if (error instanceof Error) {
+        setError(error.message || "Failed to upload image. Please try again.")
+      } else {
+        setError("Failed to upload image. Please try again.")
+      }
+      console.error("Upload error:", error)
     } finally {
-      setIsLoading(false)
+      setIsLoading(false) // Reset loading state
     }
   }
 
   return (
     <div className="container mx-auto px-4 py-8">
-      {/* Page transition animation */}
+      {/* Animated container for settings page */}
       <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
+        initial={{ opacity: 0, y: 20 }} // Initial animation state
+        animate={{ opacity: 1, y: 0 }} // Animate to visible state
         className="max-w-2xl mx-auto"
       >
-        {/* Header with back button and title */}
+        {/* Back button and page title */}
         <div className="flex items-center mb-8">
           <button
-            onClick={() => router.push('/main')}
+            onClick={() => router.push("/main")} // Navigate back to main page
             className="mr-4 p-2 hover:bg-gray-100 rounded-full"
           >
-            <ArrowLeft className="h-6 w-6" />
+            <ArrowLeft className="h-6 w-6" /> {/* Back arrow icon */}
           </button>
-          <h1 className="text-3xl font-bold">Settings</h1>
+          <h1 className="text-3xl font-bold">Settings</h1> {/* Page title */}
         </div>
 
-        {/* Error message */}
+        {/* Display error message */}
         {error && (
           <div className="mb-4 p-3 bg-red-100 text-red-700 rounded-md">
             {error}
           </div>
         )}
 
-        {/* Success message */}
+        {/* Display success message */}
         {success && (
           <div className="mb-4 p-3 bg-green-100 text-green-700 rounded-md">
             {success}
@@ -183,25 +183,34 @@ export default function SettingsPage() {
         {/* Profile picture section */}
         <div className="mb-8 flex justify-center">
           <div className="relative">
+            {/* Profile picture container */}
             <div className="w-32 h-32 rounded-full overflow-hidden bg-gray-200">
-              {session?.user?.image ? (
-                <img
+              {session?.user?.image ? ( // Display user's profile picture if available
+                <Image
                   src={session.user.image}
                   alt="Profile"
-                  className="w-full h-full object-cover"
+                  width={128}
+                  height={128}
+                  className="object-cover"
                 />
-              ) : (
-                <div className="w-full h-full flex items-center justify-center text-gray-400">
-                  <Camera size={40} />
-                </div>
+              ) : ( // Display default avatar if no profile picture
+                <Image
+                  src={defaultAvatar}
+                  alt="Default Avatar"
+                  width={128}
+                  height={128}
+                  className="object-cover"
+                />
               )}
             </div>
+            {/* Button to trigger file input for image upload */}
             <button
               onClick={() => fileInputRef.current?.click()}
               className="absolute bottom-0 right-0 bg-primary text-primary p-2 rounded-full hover:bg-primary/90"
             >
-              <Camera size={20} />
+              <Camera size={20} /> {/* Camera icon */}
             </button>
+            {/* Hidden file input for image upload */}
             <input
               type="file"
               ref={fileInputRef}
@@ -214,7 +223,7 @@ export default function SettingsPage() {
 
         {/* Settings form */}
         <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Name input */}
+          {/* Name input field */}
           <div>
             <label className="block text-sm font-medium mb-2">Name</label>
             <input
@@ -225,7 +234,7 @@ export default function SettingsPage() {
             />
           </div>
 
-          {/* Email input */}
+          {/* Email input field */}
           <div>
             <label className="block text-sm font-medium mb-2">Email</label>
             <input
@@ -236,12 +245,13 @@ export default function SettingsPage() {
             />
           </div>
 
-          {/* Password change section */}
+          {/* Change password section */}
           <div className="pt-6 border-t">
             <h2 className="text-xl font-semibold mb-4 flex items-center">
               <Lock className="mr-2" /> Change Password
             </h2>
             <div className="space-y-4">
+              {/* Current password input */}
               <div>
                 <label className="block text-sm font-medium mb-2">Current Password</label>
                 <input
@@ -251,6 +261,7 @@ export default function SettingsPage() {
                   className={inputClassName}
                 />
               </div>
+              {/* New password input */}
               <div>
                 <label className="block text-sm font-medium mb-2">New Password</label>
                 <input
@@ -260,6 +271,7 @@ export default function SettingsPage() {
                   className={inputClassName}
                 />
               </div>
+              {/* Confirm new password input */}
               <div>
                 <label className="block text-sm font-medium mb-2">Confirm New Password</label>
                 <input
@@ -272,12 +284,13 @@ export default function SettingsPage() {
             </div>
           </div>
 
-          {/* Notification settings */}
+          {/* Notifications section */}
           <div className="pt-6 border-t">
             <h2 className="text-xl font-semibold mb-4 flex items-center">
               <Bell className="mr-2" /> Notifications
             </h2>
             <div className="space-y-4">
+              {/* Email notifications toggle */}
               <label className="flex items-center">
                 <input
                   type="checkbox"
@@ -287,6 +300,7 @@ export default function SettingsPage() {
                 />
                 <span className="ml-2">Email Notifications</span>
               </label>
+              {/* Push notifications toggle */}
               <label className="flex items-center">
                 <input
                   type="checkbox"
@@ -299,7 +313,7 @@ export default function SettingsPage() {
             </div>
           </div>
 
-          {/* Submit button */}
+          {/* Save changes button */}
           <button
             type="submit"
             disabled={isLoading}
@@ -310,5 +324,7 @@ export default function SettingsPage() {
         </form>
       </motion.div>
     </div>
-  );
+  )
 }
+
+export default SettingsPage

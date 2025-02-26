@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
-import { PrismaClient } from "@prisma/client";
+import { PrismaClient, Prisma } from "@prisma/client";
 import bcrypt from "bcryptjs";
-import { authOptions } from "../../auth/[...nextauth]/route";
+import { authOptions } from "../../auth/[...nextauth]/option";
 
 // Initialize Prisma client
 const prisma = new PrismaClient();
@@ -60,12 +60,12 @@ export async function PUT(req: Request): Promise<NextResponse> {
     // If user is not found, return a 404 Not Found response.
     if (!user) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
-    };
+    }
 
-    // Prepare data for the update operation.
-    const updateData: any = {};
+    // Prepare data for the update operation using a typed object.
+    const updateData: Prisma.UserUpdateInput = {};
 
-    // Conditionally update fields based on the incoming data to avoid unnecessary updates
+    // Conditionally update fields based on the incoming data to avoid unnecessary updates.
     if (name && name !== user.name) updateData.name = name;
     if (email && email !== user.email) updateData.email = email;
     if (emailNotifications !== undefined) updateData.emailNotifications = emailNotifications;
@@ -79,7 +79,7 @@ export async function PUT(req: Request): Promise<NextResponse> {
       // If the current password is incorrect, return a 400 Bad Request response.
       if (!isValidPassword) {
         return NextResponse.json({ error: "Current password is incorrect" }, { status: 400 });
-      };
+      }
 
       // Hash the new password and add it to the update data.
       updateData.password = await bcrypt.hash(newPassword, 12);
@@ -92,13 +92,13 @@ export async function PUT(req: Request): Promise<NextResponse> {
         data: updateData,
       });
 
-      // Remove sensitive data (password) from the response before sending it back.
-      const { password, ...userWithoutPassword } = updatedUser;
+      // Omit the password field.
+      const { password: _, ...userWithoutPassword } = updatedUser; // eslint-disable-line @typescript-eslint/no-unused-vars
       return NextResponse.json({
         user: userWithoutPassword,
         message: "Settings updated successfully"
       });
-    };
+    }
 
     // Return a message if no changes were made.
     return NextResponse.json({
@@ -106,15 +106,15 @@ export async function PUT(req: Request): Promise<NextResponse> {
       message: "No changes to update"
     });
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Update error:", error);
     
     // Handle specific Prisma error (e.g., email already in use).
-    if (error.code === 'P2002') {
-      return NextResponse.json({ error: "Email already in use" },{ status: 400 });
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+      return NextResponse.json({ error: "Email already in use" }, { status: 400 });
     }
 
-    // Return a generic error message for other errors.
-    return NextResponse.json({ error: error.message || "Failed to update settings" },{ status: 500 });
-    };
-};
+    const errorMessage = error instanceof Error ? error.message : "Failed to update settings";
+    return NextResponse.json({ error: errorMessage }, { status: 500 });
+  }
+}

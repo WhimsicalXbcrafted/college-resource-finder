@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getServerSession } from "next-auth";
-import { authOptions } from "../auth/[...nextauth]/route";
+import { authOptions } from "../auth/[...nextauth]/option";
 import { writeFile, mkdir } from "fs/promises";
 import path from "path";
 
@@ -28,10 +28,10 @@ const handleImageUpload = async (image: Blob | null): Promise<string | null> => 
     await writeFile(filePath, buffer);
 
     return `/uploads/${fileName}`;
-  } catch (error) {
+  } catch (error: unknown) {
     console.error("Image upload failed:", error);
     return null;
-  };
+  }
 };
 
 /**
@@ -68,10 +68,10 @@ export async function GET() {
     }));
 
     return NextResponse.json(resourcesWithFavorites);
-  } catch (error) {
+  } catch (error: unknown) {
     console.error("Error fetching resources:", error);
     return NextResponse.json({ error: "Failed to fetch resources" }, { status: 500 });
-  };
+  }
 };
 
 /**
@@ -94,7 +94,7 @@ export async function GET() {
 export async function POST(req: Request) {
   try {
     const session = await getServerSession(authOptions);
-    if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     const formData = await req.formData();
     const newResource = {
@@ -121,11 +121,11 @@ export async function POST(req: Request) {
     });
 
     return NextResponse.json(resource);
-  } catch (error) {
+  } catch (error: unknown) {
     console.error("Error creating resource:", error);
     const errorMessage = error instanceof Error ? error.message : "Failed to create resource";
     return NextResponse.json({ error: errorMessage }, { status: 500 });
-  };
+  }
 };
 
 /**
@@ -157,15 +157,15 @@ export async function DELETE(req: Request) {
     const resource = await prisma.resource.findUnique({ where: { id: resourceId } });
     if (!resource || resource.userId !== session.user.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    };
+    }
 
     await prisma.resource.delete({ where: { id: resourceId } });
 
     return NextResponse.json({ message: "Resource deleted" });
-  } catch (error) {
+  } catch (error: unknown) {
     console.error("Error deleting resource:", error);
     return NextResponse.json({ error: "Failed to delete resource" }, { status: 500 });
-  };
+  }
 };
 
 /**
@@ -186,6 +186,16 @@ export async function DELETE(req: Request) {
  * @param {Request} req - The incoming HTTP request containing the resource ID and updated data.
  * @returns {Promise<NextResponse>} A JSON response with the updated resource or an error message.
  */
+interface ResourceUpdateData {
+  name?: string;
+  description?: string;
+  location?: string;
+  hours?: string;
+  category?: string;
+  coordinates?: string;
+  imageUrl?: string | null;
+}
+
 export async function PUT(req: Request) {
   try {
     const session = await getServerSession(authOptions);
@@ -200,17 +210,17 @@ export async function PUT(req: Request) {
     const resource = await prisma.resource.findUnique({ where: { id: resourceId } });
     if (!resource || resource.userId !== session.user.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    };
+    }
 
-    const updateData: Record<string, any> = {};
-    const fields = ["name", "description", "location", "hours", "category", "coordinates"];
+    const updateData: ResourceUpdateData = {};
+    const fields: (keyof ResourceUpdateData)[] = ["name", "description", "location", "hours", "category", "coordinates"];
     fields.forEach((field) => {
-      const value = formData.get(field)
-      if (value !== null) updateData[field] = value
+      const value = formData.get(field);
+      if (value !== null && typeof value === "string") updateData[field] = value;
     });
 
-    const imageFile = formData.get("image") as Blob | null;
-    if (imageFile && imageFile.size > 0) {
+    const imageFile = formData.get("image");
+    if (imageFile instanceof Blob && imageFile.size > 0) {
       updateData.imageUrl = await handleImageUpload(imageFile);
     }
 
@@ -226,8 +236,8 @@ export async function PUT(req: Request) {
     });
 
     return NextResponse.json(updatedResource);
-  } catch (error) {
+  } catch (error: unknown) {
     console.error("Error updating resource:", error);
     return NextResponse.json({ error: "Failed to update resource" }, { status: 500 });
-  };
+  }
 };

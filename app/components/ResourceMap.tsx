@@ -34,7 +34,7 @@ interface Resource {
   name: string
   description: string | null
   location: string | null
-  coordinates: any
+  coordinates: string | null
   averageRating: number
 }
 
@@ -115,7 +115,7 @@ export default function ResourceMap({
         {/* Render resource markers with popups */}
         {resources.map((resource) => {
           if (!resource.coordinates) return null
-          const coords = JSON.parse(resource.coordinates as string)
+          const coords = JSON.parse(resource.coordinates)
           return (
             <Marker key={resource.id} position={[coords.lat, coords.lng]} icon={customIcon}>
               <Popup className="resource-popup">

@@ -44,7 +44,7 @@ export default function Login() {
       }
     } else {
       // If successful, navigate to the main page
-      router.push('/main');
+      router.push("/main");
     }
   };
 
@@ -57,7 +57,9 @@ export default function Login() {
         transition={{ duration: 0.5 }}
         className="sm:mx-auto sm:w-full sm:max-w-md"
       >
-        <h2 className="mt-6 text-center text-3xl font-extrabold text-primary">Log in to your account</h2>
+        <h2 className="mt-6 text-center text-3xl font-extrabold text-primary">
+          Log in to your account
+        </h2>
       </motion.div>
 
       {/* Login Form with motion animation */}
@@ -78,7 +80,10 @@ export default function Login() {
           <form className="space-y-6" onSubmit={handleLogin}>
             {/* Email input field */}
             <div>
-              <label htmlFor="email" className="block text-sm font-medium text-card-foreground">
+              <label
+                htmlFor="email"
+                className="block text-sm font-medium text-card-foreground"
+              >
                 Email address
               </label>
               <div className="mt-1">
@@ -97,7 +102,10 @@ export default function Login() {
 
             {/* Password input field */}
             <div>
-              <label htmlFor="password" className="block text-sm font-medium text-card-foreground">
+              <label
+                htmlFor="password"
+                className="block text-sm font-medium text-card-foreground"
+              >
                 Password
               </label>
               <div className="mt-1">
@@ -132,7 +140,9 @@ export default function Login() {
                 <div className="w-full border-t border-muted" />
               </div>
               <div className="relative flex justify-center text-sm">
-                <span className="px-2 bg-card text-muted-foreground">Don't have an account?</span>
+                <span className="px-2 bg-card text-muted-foreground">
+                  Don&apos;t have an account?
+                </span>
               </div>
             </div>
 

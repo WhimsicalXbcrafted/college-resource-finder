@@ -14,7 +14,8 @@ const Map = dynamic(() => import('./ResourceMap'), { ssr: false });
  * Type representing the detailed information of a resource, extending the base `Resource` type.
  * Includes optional user and review details associated with the resource.
  */
-type ResourceWithDetails = Resource & {
+type ResourceWithDetails = Omit<Resource, 'coordinates'> & {
+  coordinates: string | null;
   user?: {
     id: string;
     email: string;

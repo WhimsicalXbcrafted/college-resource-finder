@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getServerSession } from "next-auth";
-import { authOptions } from "../../auth/[...nextauth]/route";
+import { authOptions } from "../../auth/[...nextauth]/option";
 
 /**
  * DELETE /api/reviews/[id]
@@ -18,18 +18,16 @@ import { authOptions } from "../../auth/[...nextauth]/route";
  * 
  * @param {Request} req - The incoming HTTP request.
  * @param {Object} context - The context object containing route parameters.
- * @param {Object} context.params - The request parameters.
- * @param {string} context.params.id - The ID of the review to delete.
+ * @param {Promise<{ id: string }>} context.params - A promise that resolves to the request parameters.
  * @returns {Promise<NextResponse>} A JSON response confirming deletion or an error message.
  */
-export async function DELETE(req: Request, { params }: { params: { id: string } }) {
+export async function DELETE(req: Request,{ params }: { params: Promise<{ id: string }> }) {
+  const { id: reviewId } = await params;
   try {
     const session = await getServerSession(authOptions);
     if (!session?.user?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
-
-    const reviewId = params.id;
 
     if (!reviewId) {
       return NextResponse.json({ error: "Review ID required" }, { status: 400 });

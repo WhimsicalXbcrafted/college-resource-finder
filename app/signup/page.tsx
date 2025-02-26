@@ -15,10 +15,10 @@ import { isUWEmail } from "../utils/emailValidator"
  * @returns {JSX.Element} The sign-up page component.
  */
 export default function SignUp() {
-  const [email, setEmail] = useState<string>("") // State to manage email input value
-  const [password, setPassword] = useState<string>("") // State to manage password input value
-  const [error, setError] = useState<string>("") // State to manage error message
-  const router = useRouter() // Hook to navigate programmatically after successful sign-up
+  const [email, setEmail] = useState<string>("")
+  const [password, setPassword] = useState<string>("")
+  const [error, setError] = useState<string>("")
+  const router = useRouter()
 
   /**
    * Handles the sign-up form submission.
@@ -32,48 +32,44 @@ export default function SignUp() {
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault()
 
-    // Validate if the entered email is a valid UW email
     if (!isUWEmail(email)) {
       setError("Please use your UW email address (@uw.edu).")
       return
     }
 
     try {
-      // Send a POST request to the server to create a new user
-      const response = await fetch('/api/signup', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+      const response = await fetch("/api/signup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password }),
       })
 
-      // Parse the response from the server
       const data = await response.json()
 
-      // If sign-up is successful, redirect to the login page
       if (response.ok) {
-        router.push('/login')
+        router.push("/login")
       } else {
         setError(data.message || "An error occurred. Please try again.")
       }
     } catch (error) {
-      // Handle any other errors that occur during the sign-up process
-      setError("An error occured. Please try again.")
+      console.error("Signup error:", error)
+      setError("An error occurred. Please try again.")
     }
-  };
+  }
 
   return (
     <div className="min-h-screen bg-background flex flex-col justify-center py-12 sm:px-6 lg:px-8">
-      {/* Animation wrapper for the sign-up heading */}
       <motion.div
         initial={{ y: -50, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
         transition={{ duration: 0.5 }}
         className="sm:mx-auto sm:w-full sm:max-w-md"
       >
-        <h2 className="mt-6 text-center text-3xl font-extrabold text-primary">Create an account</h2>
+        <h2 className="mt-6 text-center text-3xl font-extrabold text-primary">
+          Create an account
+        </h2>
       </motion.div>
 
-      {/* Form wrapper with animation for the sign-up form */}
       <motion.div
         initial={{ y: 50, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
@@ -81,16 +77,13 @@ export default function SignUp() {
         className="mt-8 sm:mx-auto sm:w-full sm:max-w-md"
       >
         <div className="bg-card py-8 px-4 shadow sm:rounded-lg sm:px-10">
-          {/* Error message display */}
           {error && ( 
             <div className="mb-4 p-2 bg-red-100 text-red-700 text-sm rounded-md">
               {error}
             </div>
           )}
 
-          {/* Sign-up form */}
           <form className="space-y-6" onSubmit={handleSignUp}>
-            {/* Email input */}
             <div>
               <label htmlFor="email" className="block text-sm font-medium text-card-foreground">
                 Email address
@@ -109,7 +102,6 @@ export default function SignUp() {
               </div>
             </div>
 
-            {/* Password input */}
             <div>
               <label htmlFor="password" className="block text-sm font-medium text-card-foreground">
                 Password
@@ -128,7 +120,6 @@ export default function SignUp() {
               </div>
             </div>
 
-            {/* Submit button */}
             <div>
               <button
                 type="submit"
@@ -139,18 +130,18 @@ export default function SignUp() {
             </div>
           </form>
 
-          {/* Links and footer */}
           <div className="mt-6">
             <div className="relative">
               <div className="absolute inset-0 flex items-center">
                 <div className="w-full border-t border-muted" />
               </div>
               <div className="relative flex justify-center text-sm">
-                <span className="px-2 bg-card text-muted-foreground">Already have an account?</span>
+                <span className="px-2 bg-card text-muted-foreground">
+                  Already have an account?
+                </span>
               </div>
             </div>
 
-            {/* Login link */}
             <div className="mt-6">
               <Link
                 href="/login"

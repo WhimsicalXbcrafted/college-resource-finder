@@ -151,7 +151,7 @@ export async function POST(
     });
 
     const averageRating =
-      reviews.reduce((sum, review) => sum + review.rating, 0) / reviews.length;
+      reviews.reduce((sum: number, review) => sum + review.rating, 0) / reviews.length;
 
     // Update the resource with the new average rating.
     await prisma.resource.update({

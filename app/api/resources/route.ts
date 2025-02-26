@@ -1,10 +1,15 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import type { Resource } from "@prisma/client";
 import { getServerSession } from "next-auth";
 import { authOptions } from "../auth/[...nextauth]/option";
 import { writeFile, mkdir } from "fs/promises";
 import path from "path";
 
+// Define an interface for resources that include a favorites array.
+interface ResourceWithFavorites extends Resource {
+  favorites: { userId: string }[];
+}
 /**
  * Helper function to handle image upload.
  * 
@@ -52,7 +57,7 @@ export async function GET() {
   try {
     const session = await getServerSession(authOptions);
 
-    const resources = await prisma.resource.findMany({
+    const resources: ResourceWithFavorites[] = await prisma.resource.findMany({
       include: {
         user: { select: { id: true, email: true, avatarUrl: true, name: true } },
         reviews: {
@@ -62,7 +67,7 @@ export async function GET() {
       },
     });
 
-    const resourcesWithFavorites = resources.map((resource) => ({
+    const resourcesWithFavorites = resources.map((resource: ResourceWithFavorites) => ({
       ...resource,
       isFavorited: session ? resource.favorites.some((fav) => fav.userId === session.user.id) : false,
     }));
@@ -72,7 +77,7 @@ export async function GET() {
     console.error("Error fetching resources:", error);
     return NextResponse.json({ error: "Failed to fetch resources" }, { status: 500 });
   }
-};
+}
 
 /**
  * POST /api/resources

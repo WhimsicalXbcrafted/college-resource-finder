@@ -7,14 +7,31 @@ import { authOptions } from "../../auth/[...nextauth]/option";
 // Initialize Prisma client
 const prisma = new PrismaClient();
 
-interface UserUpdateData {
-  name?: string;
-  email?: string;
-  emailNotifications?: boolean;
-  pushNotifications?: boolean;
-  password?: string;
-}
-
+/**
+ * PUT /api/user/settings
+ * 
+ * Updates a user's settings, including personal information and password.
+ * 
+ * Behavior:
+ * - Verifies the user's session to ensure they are authenticated.
+ * - Validates the input data (name, email, currentPassword, newPassword, emailNotifications, pushNotifications).
+ * - Updates the user's profile in the database with the provided data.
+ * - Handles password changes securely by hashing the new password.
+ * - Returns the updated user data in the response, excluding sensitive information like the password.
+ * 
+ * Authentication:
+ * - The user must be authenticated. Otherwise, a 401 Unauthorized response is returned.
+ * 
+ * Input Validation:
+ * - `name`: Must be a non-empty string (optional).
+ * - `email`: Must be a valid email format (optional).
+ * - `currentPassword`: Required if `newPassword` is provided. Must match the user's current password.
+ * - `newPassword`: Must be a non-empty string if provided.
+ * - `emailNotifications` and `pushNotifications`: Must be boolean values (optional).
+ * 
+ * @param {Request} req - The incoming HTTP request containing the updated user settings in JSON format.
+ * @returns {Promise<NextResponse>} A JSON response indicating success or failure, including the updated user data if successful.
+ */
 export async function PUT(req: Request): Promise<NextResponse> {
   try {
     // Authenticate the user by checking the session.
@@ -45,8 +62,9 @@ export async function PUT(req: Request): Promise<NextResponse> {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
-    // Prepare data for the update operation using our custom type.
-    const updateData: UserUpdateData = {};
+    // Prepare data for the update operation using a typed object.
+    // Use Prisma.UserUpdateArgs["data"] instead of Prisma.UserUpdateInput
+    const updateData: Prisma.UserUpdateArgs["data"] = {};
 
     // Conditionally update fields based on the incoming data to avoid unnecessary updates.
     if (name && name !== user.name) updateData.name = name;
@@ -92,17 +110,7 @@ export async function PUT(req: Request): Promise<NextResponse> {
   } catch (error: unknown) {
     console.error("Update error:", error);
     
-    // Handle specific Prisma error (e.g., email already in use).
-    if (error instanceof Prisma.PrismaClientKnownRequestError && (error as Prisma.PrismaClientKnownRequestError).code === 'P2002') {
-      return NextResponse.json({ error: "Email already in use" }, { status: 400 });
-    }
-
-    // Handle other errors safely.
-    if (error instanceof Error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
-    }
-
-    // Fallback for unknown errors.
-    return NextResponse.json({ error: "Failed to update settings" }, { status: 500 });
+    const errorMessage = error instanceof Error ? error.message : "Failed to update settings";
+    return NextResponse.json({ error: errorMessage }, { status: 500 });
   }
 }

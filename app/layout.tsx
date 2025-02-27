@@ -1,7 +1,7 @@
 import "./globals.css"
 import type { Metadata } from "next"
 import { Inter } from "next/font/google"
-import type React from "react" // Import React
+import type React from "react"
 import AuthProvider from "./components/SessionProvider"
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-sans" })

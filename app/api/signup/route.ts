@@ -24,8 +24,14 @@ import bcrypt from 'bcryptjs';
  */
 export async function POST(req: Request) {
   try {
-    // Parse the request body for email and password
-    const { email, password } = await req.json();
+    const body = await req.json();
+    console.log("Request Body:", body);
+
+    if (!body) {
+      return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
+    }
+
+    const { email, password } = body;
 
     // Check if the email is a valid UW email address
     if (!isUWEmail(email)) {

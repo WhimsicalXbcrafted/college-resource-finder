@@ -8,22 +8,22 @@ datasource db {
 }
 
 model User {
-  id                 String     @id @default(cuid())
-  email              String     @unique
+  id                 String             @id @default(cuid())
+  email              String             @unique
   password           String?
   name               String?
   avatarUrl          String?
-  emailNotifications Boolean    @default(true)
-  pushNotifications  Boolean    @default(false)
+  emailNotifications Boolean            @default(true)
+  pushNotifications  Boolean            @default(false)
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
   resources          Resource[]
-  reviews           Review[]
-  favorites         ResourceFavorite[]
-  createdAt         DateTime   @default(now())
-  updatedAt         DateTime   @updatedAt
+  favorites          ResourceFavorite[]
+  reviews            Review[]
 }
 
 model Resource {
-  id            String    @id @default(cuid())
+  id            String             @id @default(cuid())
   userId        String
   name          String
   description   String?
@@ -32,33 +32,34 @@ model Resource {
   category      String?
   coordinates   Json?
   imageUrl      String?
-  averageRating Float     @default(0)
-  favoriteCount Int       @default(0)
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
-  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  reviews       Review[]
+  averageRating Float              @default(0)
+  favoriteCount Int                @default(0)
+  createdAt     DateTime           @default(now())
+  updatedAt     DateTime           @updatedAt
+  user          User               @relation(fields: [userId], references: [id], onDelete: Cascade)
   favorites     ResourceFavorite[]
+  reviews       Review[]
 }
 
 model ResourceFavorite {
-   id          String   @id @default(cuid())
-  userId      String
-  resourceId  String
-  createdAt   DateTime @default(now())
-  resource    Resource @relation(fields: [resourceId], references: [id], onDelete: Cascade)
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id         String   @id @default(cuid())
+  userId     String
+  resourceId String
+  createdAt  DateTime @default(now())
+  resource   Resource @relation(fields: [resourceId], references: [id], onDelete: Cascade)
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
   @@unique([userId, resourceId])
 }
 
 model Review {
-  id          String    @id @default(cuid())
-  resourceId  String
-  userId      String
-  rating      Float
-  comment     String?
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-  resource    Resource  @relation(fields: [resourceId], references: [id], onDelete: Cascade)
-  user        User      @relation(fields: [userId], references: [id])
-} 
+  id         String   @id @default(cuid())
+  resourceId String
+  userId     String
+  rating     Float
+  comment    String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  resource   Resource @relation(fields: [resourceId], references: [id], onDelete: Cascade)
+  user       User     @relation(fields: [userId], references: [id])
+}

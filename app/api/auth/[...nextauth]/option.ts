@@ -64,7 +64,7 @@ export const authOptions: NextAuthOptions = {
 
   // Session configuration.
   session: {
-    strategy: "jwt", // Use JSON Web Tokens (JWT) for session management.
+    strategy: "jwt",
   },
 
   // Callbacks for modifying the JWT token and session.

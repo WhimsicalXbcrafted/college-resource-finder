@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma'; 
+import prisma from '@/lib/prisma'; 
 import { isUWEmail } from '@/app/utils/emailValidator';
 import bcrypt from 'bcryptjs'; 
 

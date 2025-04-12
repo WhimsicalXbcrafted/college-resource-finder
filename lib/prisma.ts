@@ -1,22 +1,15 @@
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient } from '@prisma/client'
 
-// Define a global type for the PrismaClient instance
-declare global {
-  // eslint-disable-next-line no-var
-  var prisma: PrismaClient | undefined;
-}
+declare const global: typeof globalThis & { prisma?: PrismaClient }
 
-// Create a singleton instance of PrismaClient
-const globalForPrisma = global as { prisma?: PrismaClient };
+const prisma = global.prisma || new PrismaClient({
+  datasources: {
+    db: {
+      url: process.env.DATABASE_URL + "?statement_cache_size=0"
+    }
+  }
+})
 
-// Export the PrismaClient instance, reusing the existing one if it exists
-export const prisma =
-  globalForPrisma.prisma ||
-  new PrismaClient({
-    log: ['query'], // Enable query logging
-  });
+if (process.env.NODE_ENV !== 'production') global.prisma = prisma
 
-// Assign the PrismaClient instance to the global object in non-production environments
-if (process.env.NODE_ENV !== 'production') {
-  globalForPrisma.prisma = prisma;
-}
+export default prisma

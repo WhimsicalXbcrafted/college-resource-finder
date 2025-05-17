@@ -78,7 +78,10 @@ const ResourceFeed = ({ searchTerm }: ResourceFeedProps) => {
     const fetchResources = async () => {
       setIsLoading(true);
       try {
-        const response = await fetch("/api/resources");
+        const response = await fetch("/api/resources", {
+          credentials: 'include',
+          cache: 'no-store'
+        });
         const data = await response.json();
         setResources(data);
       } catch (error) {

@@ -2,8 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from '@/lib/prisma'
 import { getServerSession } from "next-auth";
 import { authOptions } from "../auth/[...nextauth]/option";
-import { writeFile, mkdir } from "fs/promises";
-import path from "path";
+import { v2 as cloudinary } from 'cloudinary';
 
 interface ResourceFromDB {
   id: string;
@@ -25,6 +24,14 @@ interface ResourceFromDB {
 interface ResourceWithFavorites extends ResourceFromDB {
   favorites: { userId: string }[];
 }
+
+// Configure Cloudinary
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET,
+});
+
 /**
  * Helper function to handle image upload.
  * 
@@ -37,18 +44,16 @@ const handleImageUpload = async (image: Blob | null): Promise<string | null> => 
   if (!image) return null;
 
   try {
-    const uploadDir = path.join(process.cwd(), "public/uploads");
-    await mkdir(uploadDir, { recursive: true });
-
-    const fileExtension = image.type.split("/")[1] || "jpg";
-    const fileName = `resource-${Date.now()}.${fileExtension}`;
-    const filePath = path.join(uploadDir, fileName);
-
     const buffer = Buffer.from(await image.arrayBuffer());
-    await writeFile(filePath, buffer);
+    const base64Image = buffer.toString('base64');
+    const dataURI = `data:${image.type};base64,${base64Image}`;
 
-    return `/uploads/${fileName}`;
-  } catch (error: unknown) {
+    const result = await cloudinary.uploader.upload(dataURI, {
+      folder: 'uw-resources',
+    });
+
+    return result.secure_url;
+  } catch (error) {
     console.error("Image upload failed:", error);
     return null;
   }
